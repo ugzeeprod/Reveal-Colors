@@ -1,0 +1,12 @@
+{
+  "collections": [
+    {
+      "id": "kawaii",
+      "name": "Kawaii",
+      "emoji": "🌸",
+      "levels": [
+        { "id": "kawaii_imagevb", "title": "Image" }
+      ]
+    }
+  ]
+}
