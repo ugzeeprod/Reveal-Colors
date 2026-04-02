@@ -1882,11 +1882,11 @@ async function saveLevelProgressData(payload) {
   // =========================
   async function loadLevelsConfig() {
     try {
-      const data = await rcGetConfig();
-      if (!data || !data.collections) { LEVELS_DATA = { collections: [] }; return; }
-      LEVELS_DATA = data;
+      const res = await fetch('levels/levels.json');
+      if (!res.ok) { LEVELS_DATA = { collections: [] }; return; }
+      LEVELS_DATA = await res.json();
     } catch (e) {
-      console.warn('Erreur chargement config:', e);
+      console.warn('Erreur chargement levels.json:', e);
       LEVELS_DATA = { collections: [] };
     }
   }
@@ -2090,16 +2090,16 @@ async function drawLevelThumbnail(canvas, collectionId, levelId) {
     const ctx = canvas.getContext("2d");
     canvas.width = canvas.width;
 
-    const levelData = await rcGetLevel(levelId);
-    if (!levelData) { ctx.fillStyle="#eee"; ctx.fillRect(0,0,canvas.width,canvas.height); return; }
-    const { palette, grid: baseGrid } = levelData;
+    const res = await fetch(`levels/${levelId}.json`);
+    if (!res.ok) { ctx.fillStyle="#eee"; ctx.fillRect(0,0,canvas.width,canvas.height); return; }
+    const levelData = await res.json();
+    const { palette, grid: baseGrid, imageBase64 } = levelData;
 
-    // Essayer d afficher l image directement
-    const imageBase64 = await rcGetImage(levelId);
     if (imageBase64) {
       const img = new Image();
       img.onload = () => { ctx.drawImage(img, 0, 0, canvas.width, canvas.height); };
       img.src = imageBase64;
+      return;
     }
 
     const saved = await loadLevelProgressData(collectionId, levelId);
@@ -2405,14 +2405,12 @@ function setupCanvasForGrid() {
 
   async function loadLevelDataFromServer(collectionId, levelId) {
     try {
-      // Charger depuis IndexedDB
-      const levelData = await rcGetLevel(levelId);
-      if (!levelData) throw new Error('Niveau introuvable dans IndexedDB: ' + levelId);
+      // Charger depuis le fichier JSON statique sur GitHub Pages
+      const res = await fetch(`levels/${levelId}.json`);
+      if (!res.ok) throw new Error(`Niveau introuvable: levels/${levelId}.json`);
+      const levelData = await res.json();
 
-      const { grid, palette, gameGrid, meta } = levelData;
-
-      // Image depuis IndexedDB
-      const imageBase64 = await rcGetImage(levelId);
+      const { grid, palette, gameGrid, imageBase64 } = levelData;
 
       currentGame.gameGrid = gameGrid || null;
       currentGame.gridH = grid.length;
@@ -2421,7 +2419,7 @@ function setupCanvasForGrid() {
       currentGame.palette = palette;
       currentGame.totalCells = currentGame.gridW * currentGame.gridH;
 
-      // Image
+      // Afficher l'image
       if (imageBase64) {
         const img = new Image();
         img.onload = () => {
