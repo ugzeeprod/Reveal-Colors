@@ -1,86 +1,110 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html>
 <head>
-<meta charset="UTF-8">
-<title>Admin — Reveal Colors</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<style>
-* { box-sizing: border-box; }
-body { font-family: system-ui, sans-serif; background: #f5f5f5; margin: 0; padding: 16px; }
-h1 { font-size: 20px; color: #ff6fb5; margin-bottom: 16px; }
-.collection { background: white; border-radius: 12px; padding: 12px 16px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-.col-title { font-size: 15px; font-weight: 700; color: #333; margin-bottom: 8px; }
-.level-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-top: 1px solid #f0f0f0; }
-.level-thumb { width: 48px; height: 48px; border-radius: 6px; object-fit: cover; background: #eee; }
-.level-info { flex: 1; font-size: 13px; color: #555; }
-.level-id { font-size: 11px; color: #aaa; }
-.btn-del { background: #ff4d6d; color: white; border: none; border-radius: 6px; padding: 4px 10px; font-size: 12px; cursor: pointer; }
-.btn-del:hover { background: #cc2a49; }
-#status { font-size: 13px; color: #888; margin-bottom: 12px; }
-.empty { color: #aaa; font-size: 13px; padding: 8px 0; }
-</style>
+  <meta charset="utf-8">
+  <title>Admin - Niveaux publiés</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; background:#fafafa; }
+    h1 { margin-bottom: 10px; }
+    .category { margin-top: 25px; }
+    .level {
+      display: flex; 
+      align-items: center; 
+      gap: 12px; 
+      padding: 10px;
+      background: white;
+      border-radius: 10px;
+      margin-bottom: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    img { width: 80px; height: 80px; object-fit: cover; border-radius: 8px; }
+    .no-img { width:80px;height:80px;background:#ddd;border-radius:8px;flex-shrink:0; }
+    button {
+      background: #e75151;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    button:hover { background: #c93636; }
+    #reload { margin-bottom: 20px; background:#4353a5; }
+    #reload:hover { background:#2d3a8c; }
+    .empty { color: #aaa; font-size: 13px; padding: 8px 0; }
+  </style>
 </head>
 <body>
-<h1>Admin — Reveal Colors</h1>
-<div id="status">Chargement...</div>
-<div id="content"></div>
+
+  <h1>📁 Niveaux publiés</h1>
+  <button id="reload">🔄 Recharger la liste</button>
+  <div id="content"></div>
 
 <script src="idb.js"></script>
 <script>
-async function loadAdmin() {
-  const cfg = await rcGetConfig();
-  const content = document.getElementById('content');
-  const status = document.getElementById('status');
+async function loadLevels() {
+  const content = document.getElementById("content");
+  content.innerHTML = "<p>Chargement...</p>";
 
-  const total = cfg.collections.reduce((s, c) => s + c.levels.length, 0);
-  status.textContent = `${cfg.collections.length} catégorie(s), ${total} niveau(x)`;
+  const cfg = await rcGetConfig();
+  content.innerHTML = "";
 
   if (!cfg.collections.length) {
-    content.innerHTML = '<div class="empty">Aucun niveau publié.</div>';
+    content.innerHTML = '<p class="empty">Aucun niveau publié.</p>';
     return;
   }
 
-  content.innerHTML = '';
   for (const col of cfg.collections) {
-    const div = document.createElement('div');
-    div.className = 'collection';
-    div.innerHTML = `<div class="col-title">${col.emoji || '🎨'} ${col.name} (${col.id})</div>`;
+    const catDiv = document.createElement("div");
+    catDiv.className = "category";
+    catDiv.innerHTML = `<h2>${col.emoji || '🎨'} ${col.name}</h2>`;
 
     if (!col.levels.length) {
-      div.innerHTML += '<div class="empty">Aucun niveau.</div>';
+      catDiv.innerHTML += '<p class="empty">Aucun niveau.</p>';
     }
 
     for (const lvl of col.levels) {
-      const row = document.createElement('div');
-      row.className = 'level-row';
+      const lvlDiv = document.createElement("div");
+      lvlDiv.className = "level";
 
-      const img = document.createElement('img');
-      img.className = 'level-thumb';
-      rcGetImage(lvl.id).then(b64 => { if (b64) img.src = b64; });
+      // Image depuis IndexedDB
+      const imgEl = document.createElement('div');
+      imgEl.className = 'no-img';
+      rcGetImage(lvl.id).then(b64 => {
+        if (b64) {
+          const img = document.createElement('img');
+          img.src = b64;
+          lvlDiv.replaceChild(img, imgEl);
+        }
+      });
 
       const info = document.createElement('div');
-      info.className = 'level-info';
-      info.innerHTML = `<strong>${lvl.title}</strong><br><span class="level-id">${lvl.id}</span>`;
+      info.style.flex = '1';
+      info.innerHTML = `<strong>${lvl.title}</strong><br><small>ID : ${lvl.id} — Catégorie : ${col.id}</small>`;
 
       const btn = document.createElement('button');
-      btn.className = 'btn-del';
-      btn.textContent = 'Supprimer';
-      btn.onclick = async () => {
-        if (!confirm(`Supprimer "${lvl.title}" ?`)) return;
-        await rcDeleteLevel(col.id, lvl.id);
-        loadAdmin();
-      };
+      btn.innerHTML = '🗑 Supprimer';
+      btn.onclick = () => deleteLevel(col.id, lvl.id);
 
-      row.appendChild(img);
-      row.appendChild(info);
-      row.appendChild(btn);
-      div.appendChild(row);
+      lvlDiv.appendChild(imgEl);
+      lvlDiv.appendChild(info);
+      lvlDiv.appendChild(btn);
+      catDiv.appendChild(lvlDiv);
     }
-    content.appendChild(div);
+
+    content.appendChild(catDiv);
   }
 }
 
-loadAdmin();
+async function deleteLevel(categoryId, levelId) {
+  if (!confirm("Supprimer ce niveau ?")) return;
+  await rcDeleteLevel(categoryId, levelId);
+  loadLevels();
+}
+
+document.getElementById("reload").onclick = loadLevels;
+loadLevels();
 </script>
+
 </body>
 </html>
