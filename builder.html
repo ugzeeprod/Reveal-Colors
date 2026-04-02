@@ -1,0 +1,1792 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Scratch by Number – Builder PRO</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<script src="idb.js"></script>
+
+<style>
+* {
+  box-sizing: border-box;
+}
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: linear-gradient(135deg,#fbe9f0,#e5f0ff);
+  min-height: 100vh;
+}
+body {
+  display:flex;
+  justify-content:center;
+  align-items:flex-start;
+  padding:16px;
+}
+#app {
+  width:100%;
+  max-width:1100px;
+  background:rgba(255,255,255,0.96);
+  border-radius:24px;
+  box-shadow:0 12px 30px rgba(0,0,0,0.18);
+  padding:18px;
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+}
+header {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+}
+.logoTitle {
+  font-size:20px;
+  font-weight:700;
+  letter-spacing:.04em;
+  color:#ff6fb5;
+  text-shadow:0 1px 3px rgba(0,0,0,0.2);
+}
+.subtitle {
+  font-size:13px;
+  color:#666;
+}
+main {
+  display:flex;
+  flex-wrap:wrap;
+  gap:14px;
+}
+.panel {
+  background:#f9f7ff;
+  border-radius:18px;
+  padding:12px 14px;
+  box-shadow:0 6px 16px rgba(0,0,0,0.10);
+}
+#leftPanel {
+  flex:0 0 320px;
+  max-width:100%;
+}
+#rightPanel {
+  flex:1;
+  min-width:320px;
+}
+.sectionTitle {
+  font-size:15px;
+  font-weight:600;
+  margin-bottom:6px;
+  color:#333;
+}
+label {
+  font-size:12px;
+  font-weight:500;
+  display:block;
+  margin-bottom:4px;
+  color:#555;
+}
+input[type="text"],
+input[type="number"],
+select,
+textarea {
+  width:100%;
+  padding:7px 9px;
+  border-radius:999px;
+  border:1px solid #d4d8ff;
+  font-size:13px;
+  outline:none;
+}
+textarea {
+  border-radius:12px;
+  resize:vertical;
+  min-height:80px;
+  font-family:monospace;
+}
+input[type="text"]:focus,
+input[type="number"]:focus,
+select:focus,
+textarea:focus {
+  border-color:#ff7ac4;
+  box-shadow:0 0 0 2px rgba(255,122,196,0.2);
+}
+.btn {
+  border:none;
+  border-radius:999px;
+  padding:8px 12px;
+  font-size:13px;
+  font-weight:600;
+  cursor:pointer;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  transition:transform .08s ease, box-shadow .08s ease, background .15s ease;
+}
+.btnPrimary {
+  background:linear-gradient(135deg,#ff7ac4,#ff9c9c);
+  color:#fff;
+  box-shadow:0 6px 16px rgba(255,122,196,0.45);
+}
+.btnPrimary:active {
+  transform:translateY(1px) scale(0.99);
+  box-shadow:0 3px 10px rgba(255,122,196,0.4);
+}
+.btnSecondary {
+  background:#f3f5ff;
+  color:#4353a5;
+  box-shadow:0 4px 10px rgba(40,40,90,0.12);
+}
+.btnSecondary:active {
+  transform:translateY(1px) scale(0.99);
+  box-shadow:0 2px 7px rgba(40,40,90,0.18);
+}
+.btnTiny {
+  padding:5px 8px;
+  font-size:11px;
+}
+.row {
+  display:flex;
+  gap:8px;
+  margin-bottom:8px;
+}
+.row > div {
+  flex:1;
+}
+.previewBox {
+  width:100%;
+  max-width:260px;
+  height:180px;
+  border-radius:16px;
+  border:2px solid #d4d8ff;
+  background:#e2e4ff;
+  overflow:hidden;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+}
+.previewBox img {
+  max-width:100%;
+  max-height:100%;
+  object-fit:contain;
+}
+.palettePreview {
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  margin-top:6px;
+}
+.paletteSwatch {
+  width:22px;
+  height:22px;
+  border-radius:6px;
+  box-shadow:0 1px 4px rgba(0,0,0,0.3);
+  border:1px solid rgba(255,255,255,0.6);
+}
+.infoText {
+  font-size:12px;
+  color:#666;
+}
+.smallTag {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  font-size:11px;
+  border-radius:999px;
+  padding:3px 8px;
+  background:rgba(255,255,255,0.9);
+  border:1px solid rgba(0,0,0,0.04);
+  margin-top:4px;
+}
+.scratchHeader {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  font-size:12px;
+  color:#555;
+}
+.progressBar {
+  width:100%;
+  height:8px;
+  background:#dde2ff;
+  border-radius:999px;
+  overflow:hidden;
+}
+.progressInner {
+  height:100%;
+  width:0%;
+  background:linear-gradient(90deg,#6cc6ff,#a971ff);
+}
+#scratchCanvasWrap {
+  border-radius:20px;
+  background:#111;
+  padding:8px;
+  box-shadow:0 6px 18px rgba(0,0,0,0.18);
+  margin-top:8px;
+}
+#scratchCanvas {
+  width:100%;
+  max-width:720px;
+  height:auto;
+  background:#000;
+  border-radius:16px;
+  touch-action:none;
+  display:block;
+  margin:0 auto;
+}
+.scratchBottom {
+  margin-top:8px;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  font-size:12px;
+}
+.paletteRow {
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  justify-content:center;
+}
+.dot {
+  width:26px;
+  height:26px;
+  border-radius:50%;
+  border:2px solid #fff;
+  box-shadow:0 2px 5px rgba(0,0,0,0.35);
+  cursor:pointer;
+  transition:transform .12s ease, box-shadow .12s ease, border .12s ease;
+}
+.dot.active {
+  transform:scale(1.12);
+  border-color:#ff7ac4;
+  box-shadow:0 0 8px rgba(255,122,196,0.9);
+}
+.brushSliderRow {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:6px;
+}
+.brushSliderRow span {
+  font-size:12px;
+  color:#555;
+}
+input[type="range"] {
+  flex:1;
+}
+@media (max-width:900px){
+  main {
+    flex-direction:column;
+  }
+  #leftPanel {
+    flex:auto;
+  }
+}
+
+/* ===== GRILLE DE JEU ===== */
+#gameGridPanel {
+  width: 100%;
+  margin-top: 0;
+}
+#gameGridToolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.toolBtn {
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 2px solid transparent;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  background: #f3f5ff;
+  color: #4353a5;
+  transition: all 0.12s;
+}
+.toolBtn.active {
+  background: #4353a5;
+  color: white;
+  border-color: #2d3a8c;
+}
+.toolBtn.rock {
+  background: #e0e0e0;
+  color: #555;
+}
+.toolBtn.rock.active {
+  background: #757575;
+  color: white;
+  border-color: #424242;
+}
+.toolBtn.eraser.active {
+  background: #ff7ac4;
+  color: white;
+  border-color: #cc2a89;
+}
+#gameGridColorPalette {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.gameGridDot {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 3px solid transparent;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+  transition: transform 0.1s, border-color 0.1s;
+  position: relative;
+}
+.gameGridDot.active {
+  border-color: #ff7ac4;
+  transform: scale(1.2);
+  box-shadow: 0 0 10px rgba(255,122,196,0.7);
+}
+.gameGridDot .dotCount {
+  position: absolute;
+  bottom: -18px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 10px;
+  font-weight: 700;
+  color: #555;
+  white-space: nowrap;
+}
+#gameGridCanvas {
+  border-radius: 12px;
+  border: 2px solid #d4d8ff;
+  background: #f0f2ff;
+  cursor: crosshair;
+  display: block;
+  max-width: 100%;
+}
+#gameGridInfo {
+  font-size: 12px;
+  color: #666;
+  margin-top: 6px;
+}
+#gameGridCounters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+.counterBadge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  background: white;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+.counterDot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.counterBadge.ok { color: #2e7d32; }
+.counterBadge.bad { color: #c62828; }
+.counterBadge.rock-count { color: #555; }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div>
+      <div class="logoTitle">Scratch by Number – Builder PRO</div>
+      <div class="subtitle">Transforme une image en niveau jouable, avec catégories 💾</div>
+    </div>
+    <div class="infoText">
+      ⚠ Pour tester les imports, ouvre ce fichier avec un petit serveur local<br>
+      (ex: <code>python -m http.server</code>) ou utilise Firefox.
+    </div>
+  </header>
+
+  <main>
+    <!-- PANEL GAUCHE : PARAMS, IMPORT, CATÉGORIE, EXPORT -->
+    <div id="leftPanel" class="panel">
+      <div class="sectionTitle">1. Image & paramètres</div>
+
+      <label for="imgInput">Image source</label>
+      <input id="imgInput" type="file" accept="image/png,image/jpeg">
+
+      <div class="row">
+        <div>
+          <label for="gridSize">Taille de la grille</label>
+          <select id="gridSize">
+  <option value="50">50 × 50</option>
+  <option value="100">100 × 100</option>
+  <option value="200" selected>200 × 200</option>
+  <option value="300">300 × 300</option>
+  <option value="500">500 × 500</option>
+  <option value="800">800 × 800</option>
+  <option value="1000">1000 × 1000</option>
+</select>
+        </div>
+        <div>
+          <label for="maxColors">Couleurs max</label>
+          <input id="maxColors" type="number" min="5" max="128" value="20">
+        </div>
+      </div>
+
+      <div style="margin-top:4px;">
+        <label>
+          <input id="useCustomSize" type="checkbox">
+          Utiliser une taille personnalisée
+        </label>
+      </div>
+
+      <div class="row" style="margin-top:6px;">
+        <div>
+          <label for="customWidth">Largeur personnalisée</label>
+          <input id="customWidth" type="number" min="1" placeholder="ex : 150">
+        </div>
+        <div>
+          <label for="customHeight">Hauteur personnalisée</label>
+          <input id="customHeight" type="number" min="1" placeholder="ex : 300">
+        </div>
+      </div>
+
+      <div style="margin-bottom:8px;">
+        <label>
+          <input id="autoAdapt" type="checkbox">
+          Adapter automatiquement au ratio de l’image
+        </label>
+      </div>
+
+      <button class="btn btnPrimary" id="btnGenerate">Générer la grille</button>
+
+      <div style="margin-top:8px;" class="infoText">
+        Grille : <span id="gridInfo">-</span>
+      </div>
+
+      <hr style="margin:10px 0;border:none;border-top:1px solid #ddd;">
+
+      <div class="sectionTitle">2. Métadonnées niveau</div>
+
+      <label for="levelTitle">Titre du niveau</label>
+      <input id="levelTitle" type="text" placeholder="ex : Chat mignon">
+
+      <div class="row">
+        <div>
+          <label for="categorySelect">Catégorie</label>
+          <select id="categorySelect">  <option value="1000">1000 × 1000</option>
+</select>
+        </div>
+        <div style="display:flex;align-items:flex-end;">
+          <button class="btn btnSecondary btnTiny" id="btnNewCategory">+ Catégorie</button>
+        </div>
+      </div>
+
+      <label for="levelId">ID du niveau</label>
+      <input id="levelId" type="text" placeholder="ex : kawaii_chat_01">
+
+      <div class="infoText">
+        L’ID servira pour ton jeu (levels.json). Tu peux le laisser auto, ou le changer.
+      </div>
+
+      <hr style="margin:10px 0;border:none;border-top:1px solid #ddd;">
+
+      <div class="sectionTitle">3. Export</div>
+      <div class="infoText">Après génération, tu peux exporter les fichiers :</div>
+
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;">
+        <button class="btn btnSecondary btnTiny" id="btnExportHidden">hidden.png</button>
+        <button class="btn btnSecondary btnTiny" id="btnExportMask">mask.png</button>
+        <button class="btn btnSecondary btnTiny" id="btnExportIndex">indexMap.png</button>
+        <button class="btn btnSecondary btnTiny" id="btnExportPalette">palette.json</button>
+        <button class="btn btnSecondary btnTiny" id="btnExportMeta">meta.json</button>
+        <button class="btn btnSecondary btnTiny" id="btnExportGrid">grid.json</button>
+
+      </div>
+
+      <!-- 🔥 NOUVEAU : bouton Publier dans le jeu -->
+      <div style="margin-top:10px;">
+        <button class="btn btnPrimary" id="btnPublishGame">
+          🚀 Publier dans le jeu
+        </button>
+      </div>
+
+      <div class="smallTag">Tu pourras ensuite déposer ces fichiers dans /levels/<em>catégorie</em>/ de ton jeu.</div>
+
+      <label style="margin-top:10px;">Entrée à coller dans levels.json</label>
+      <textarea id="levelsSnippet" readonly></textarea>
+      <button class="btn btnSecondary btnTiny" id="btnCopySnippet">Copier le snippet</button>
+    </div>
+
+    <!-- PANEL DROIT : APERÇUS + TEST SCRATCH -->
+    <div id="rightPanel" class="panel">
+      <div class="sectionTitle">4. Aperçus image & palette</div>
+
+      <div class="row">
+        <div>
+          <label>Original</label>
+          <div class="previewBox">
+            <img id="previewOriginal" alt="">
+          </div>
+        </div>
+        <div>
+          <label>Pixelisé</label>
+          <div class="previewBox">
+            <img id="previewPixel" alt="">
+          </div>
+        </div>
+      </div>
+
+      <label>Palette de couleurs</label>
+      <div id="palettePreview" class="palettePreview"></div>
+
+      <div class="smallTag">Les couleurs sont réduites automatiquement (5–128).</div>
+
+      <hr style="margin:10px 0;border:none;border-top:1px solid #ddd;">
+
+      <div class="sectionTitle">5. Test de grattage (prévisualisation)</div>
+      <div class="scratchHeader">
+        <div>
+          Couleur active : <span id="scratchActiveColor">aucune</span><br>
+          Restants pour cette couleur : <span id="scratchRemaining">0</span>
+        </div>
+        <div>
+          Progression : <span id="scratchProgressLabel">0%</span>
+          <div class="progressBar"><div id="scratchProgressInner" class="progressInner"></div></div>
+        </div>
+      </div>
+
+      <div id="scratchCanvasWrap">
+        <canvas id="scratchCanvas" width="360" height="360"></canvas>
+      </div>
+
+      <div class="scratchBottom">
+        <div class="brushSliderRow">
+          <span>Taille du pinceau</span>
+          <span><span id="brushValue">3</span> px</span>
+        </div>
+        <input id="brushSlider" type="range" min="1" max="100" value="3">
+
+        <div class="paletteRow" id="scratchPaletteRow"></div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ===== GRILLE DE JEU ===== -->
+  <div id="gameGridPanel" class="panel">
+    <div class="sectionTitle">6. Constructeur de niveau (solution gagnante)</div>
+    <div class="infoText" style="margin-bottom:10px;">
+      Génère d'abord la grille image. Ensuite : définit l'ordre de résolution des couleurs, puis le builder construit la grille automatiquement à l'envers.
+    </div>
+
+    <div style="display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start;">
+
+      <!-- ÉTAPE A : ordre de résolution -->
+      <div style="flex:1;min-width:300px;">
+        <div style="font-size:13px;font-weight:700;color:#333;margin-bottom:8px;">A — Ordre de résolution <span style="font-size:11px;font-weight:400;color:#888;">(glisser pour réordonner)</span></div>
+        <div class="infoText" style="margin-bottom:8px;">Chaque couleur = 1 triplet. Ordre = ce que le joueur fera en premier.</div>
+        <div id="solutionOrder" style="display:flex;flex-wrap:wrap;gap:8px;min-height:48px;padding:8px;background:#f0f2ff;border-radius:12px;border:2px dashed #c5caff;"></div>
+        <div style="margin-top:8px;display:flex;gap:8px;">
+          <button class="btn btnSecondary btnTiny" id="btnAutoOrder">Auto (simple)</button>
+          <button class="btn btnSecondary btnTiny" id="btnShuffleOrder">Mélanger</button>
+          <button class="btn btnSecondary btnTiny" id="btnClearOrder">Vider</button>
+        </div>
+      </div>
+
+      <!-- ÉTAPE B : config grille -->
+      <div style="flex:0 0 auto;">
+        <div style="font-size:13px;font-weight:700;color:#333;margin-bottom:8px;">B — Configuration</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <label style="margin:0;white-space:nowrap;">Colonnes :</label>
+            <input id="gameGridCols" type="number" min="2" max="8" value="5" style="width:60px;border-radius:999px;padding:4px 8px;border:1px solid #d4d8ff;font-size:13px;">
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <label style="margin:0;white-space:nowrap;">Tray size :</label>
+            <input id="traySize" type="number" min="5" max="10" value="7" style="width:60px;border-radius:999px;padding:4px 8px;border:1px solid #d4d8ff;font-size:13px;">
+          </div>
+          <button class="btn btnPrimary btnTiny" id="btnBuildLevel" style="margin-top:4px;">⚡ Construire le niveau</button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Résultat validation -->
+    <div id="levelValidation" style="margin-top:12px;padding:10px 14px;border-radius:12px;font-size:13px;font-weight:600;display:none;"></div>
+
+    <!-- Canvas grille résultante -->
+    <div id="gameGridWrap" style="margin-top:12px;display:none;">
+      <div style="font-size:13px;font-weight:700;color:#333;margin-bottom:8px;">Grille générée <span id="gameGridInfo" style="font-weight:400;color:#888;"></span></div>
+
+      <!-- Rochers manuels -->
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap;">
+        <span style="font-size:12px;color:#555;">Ajouter/supprimer des rochers :</span>
+        <button class="toolBtn rock" id="toolRock" style="padding:4px 10px;font-size:12px;">⬛ Rocher ON/OFF</button>
+        <button class="btn btnSecondary btnTiny" id="btnClearRocks">Supprimer rochers</button>
+      </div>
+
+      <canvas id="gameGridCanvas" width="600" height="400" style="border-radius:12px;border:2px solid #d4d8ff;background:#f0f2ff;cursor:crosshair;display:block;max-width:100%;"></canvas>
+    </div>
+
+  </div>
+
+</div><!-- fin #app -->
+
+<script src="idb.js"></script>
+<script>
+// ========= ÉTAT GLOBAL =========
+let originalImg = null;
+let resizedCanvas = document.createElement("canvas");
+let resizedCtx = resizedCanvas.getContext("2d");
+
+let LEVEL = [];           // [y][x] -> index couleur
+let COLOR_PALETTE = [];   // [{r,g,b}]
+let colorRemaining = [];  // par couleur
+let revealed = 0;
+let totalCells = 0;
+let GRID_W = 0;
+let GRID_H = 0;
+
+let activeColorIndex = null;
+let brushSize = 3;
+
+const scratchCanvas = document.getElementById("scratchCanvas");
+const sctx = scratchCanvas.getContext("2d");
+
+let scratchingTouch = false;
+
+function updateScratchCanvasSize() {
+  const W = GRID_W;
+  const H = GRID_H;
+  if (!W || !H) return;
+  const maxSize = 720;
+  let canvasW, canvasH;
+  if (W >= H) {
+    canvasW = maxSize;
+    canvasH = Math.max(1, Math.round(maxSize * (H / W)));
+  } else {
+    canvasH = maxSize;
+    canvasW = Math.max(1, Math.round(maxSize * (W / H)));
+  }
+  scratchCanvas.width = canvasW;
+  scratchCanvas.height = canvasH;
+}
+
+// ========= INIT CATÉGORIES =========
+const DEFAULT_CATEGORIES = [
+  { id: "kawaii", name: "Kawaii", emoji: "🌸" },
+  { id: "animaux", name: "Animaux", emoji: "🐾" },
+  { id: "nature",  name: "Nature",  emoji: "🌿" },
+  { id: "monuments", name: "Monuments", emoji: "🏙" }
+];
+
+function loadCategories() {
+  try {
+    const raw = localStorage.getItem("sbn_categories");
+    if (!raw) return DEFAULT_CATEGORIES;
+    const data = JSON.parse(raw);
+    if (!Array.isArray(data)) return DEFAULT_CATEGORIES;
+    return data;
+  } catch {
+    return DEFAULT_CATEGORIES;
+  }
+}
+
+function saveCategories(cats) {
+  localStorage.setItem("sbn_categories", JSON.stringify(cats));
+}
+
+let CATEGORIES = loadCategories();
+
+const categorySelect = document.getElementById("categorySelect");
+const btnNewCategory = document.getElementById("btnNewCategory");
+
+function refreshCategorySelect() {
+  categorySelect.innerHTML = "";
+  CATEGORIES.forEach(cat => {
+    const opt = document.createElement("option");
+    opt.value = cat.id;
+    opt.textContent = `${cat.emoji || "🎨"} ${cat.name}`;
+    categorySelect.appendChild(opt);
+  });
+}
+refreshCategorySelect();
+
+btnNewCategory.addEventListener("click", () => {
+  const name = prompt("Nom de la nouvelle catégorie (ex : Halloween) :");
+  if (!name) return;
+  let id = prompt("ID de la catégorie (sans espaces, ex : halloween) :");
+  if (!id) return;
+  id = id.trim().toLowerCase();
+  const emoji = prompt("Emoji (optionnel, ex : 🎃) :") || "🎨";
+  if (CATEGORIES.some(c => c.id === id)) {
+    alert("Cette ID de catégorie existe déjà.");
+    return;
+  }
+  CATEGORIES.push({ id, name, emoji });
+  saveCategories(CATEGORIES);
+  refreshCategorySelect();
+  categorySelect.value = id;
+});
+
+// ========= IMPORT IMAGE =========
+const imgInput = document.getElementById("imgInput");
+const previewOriginal = document.getElementById("previewOriginal");
+const previewPixel = document.getElementById("previewPixel");
+
+imgInput.addEventListener("change", e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const img = new Image();
+  img.onload = () => {
+    originalImg = img;
+    previewOriginal.src = img.src;
+  };
+  img.src = URL.createObjectURL(file);
+});
+
+// ========= GÉNÉRATION GRILLE =========
+const btnGenerate = document.getElementById("btnGenerate");
+const gridInfo = document.getElementById("gridInfo");
+const palettePreview = document.getElementById("palettePreview");
+const scratchPaletteRow = document.getElementById("scratchPaletteRow");
+
+btnGenerate.addEventListener("click", () => {
+  if (!originalImg) {
+    alert("Choisis d’abord une image.");
+    return;
+  }
+  const baseSize = parseInt(document.getElementById("gridSize").value,10);
+  let maxC = parseInt(document.getElementById("maxColors").value,10);
+  if (isNaN(maxC) || maxC < 5) maxC = 5;
+  if (maxC > 128) maxC = 128;
+
+  const useCustom = document.getElementById("useCustomSize").checked;
+  const cw = parseInt(document.getElementById("customWidth").value,10);
+  const ch = parseInt(document.getElementById("customHeight").value,10);
+  const auto = document.getElementById("autoAdapt").checked;
+
+  let W, H;
+
+  if (useCustom && !isNaN(cw) && !isNaN(ch) && cw > 0 && ch > 0) {
+    W = cw;
+    H = ch;
+  } else if (auto) {
+    const longest = Math.max(originalImg.width, originalImg.height);
+    const ratio = baseSize / longest;
+    W = Math.max(1, Math.round(originalImg.width * ratio));
+    H = Math.max(1, Math.round(originalImg.height * ratio));
+  } else {
+    W = baseSize;
+    H = baseSize;
+  }
+
+  generateGrid({ w: W, h: H }, maxC);
+  autoFillLevelId();
+  buildLevelsSnippet();
+});
+
+function generateGrid(size, maxColors) {
+  const W = size.w;
+  const H = size.h;
+  GRID_W = W;
+  GRID_H = H;
+  resizedCanvas.width = W;
+  resizedCanvas.height = H;
+
+  const ratio = Math.min(W / originalImg.width, H / originalImg.height);
+  const w = originalImg.width * ratio;
+  const h = originalImg.height * ratio;
+  const x = (W - w) / 2;
+  const y = (H - h) / 2;
+
+  resizedCtx.clearRect(0,0,W,H);
+  resizedCtx.imageSmoothingEnabled = false;
+  resizedCtx.drawImage(originalImg, x, y, w, h);
+
+  previewPixel.src = resizedCanvas.toDataURL("image/png");
+
+  const imgData = resizedCtx.getImageData(0,0,W,H);
+  const data = imgData.data;
+
+  COLOR_PALETTE = quantize(data, maxColors);
+
+  LEVEL = [];
+  colorRemaining = new Array(COLOR_PALETTE.length).fill(0);
+  revealed = 0;
+  totalCells = W * H;
+
+  for (let yy=0; yy<H; yy++) {
+    const row = [];
+    for (let xx=0; xx<W; xx++) {
+      const i = (yy*W+xx)*4;
+      const r = data[i];
+      const g = data[i+1];
+      const b = data[i+2];
+      const idx = nearest(r,g,b);
+      row.push(idx);
+      colorRemaining[idx]++;
+    }
+    LEVEL.push(row);
+  }
+
+  compressAndSortColors();
+  gridInfo.textContent = `${W}×${H}, ${COLOR_PALETTE.length} couleurs.`;
+
+  buildPalettePreview();
+  updateScratchCanvasSize();
+  initScratchCanvas();
+}
+
+// ========= QUANTIZATION =========
+function dist2(a,b) {
+  return (a[0]-b[0])**2 + (a[1]-b[1])**2 + (a[2]-b[2])**2;
+}
+function quantize(data, count) {
+  const colors = [];
+  for (let i=0;i<data.length;i+=4) {
+    colors.push([data[i],data[i+1],data[i+2]]);
+  }
+  const centroids = [];
+  for (let i=0;i<count;i++) {
+    const p = colors[Math.floor(Math.random()*colors.length)];
+    centroids.push([p[0],p[1],p[2]]);
+  }
+  for (let it=0;it<3;it++) {
+    const groups = Array.from({length:count},()=>[]);
+    for (let c of colors) {
+      let best=0, bestD=Infinity;
+      for (let i=0;i<count;i++) {
+        const d = dist2(c,centroids[i]);
+        if (d<bestD) {bestD=d;best=i;}
+      }
+      groups[best].push(c);
+    }
+    for (let i=0;i<count;i++) {
+      if (!groups[i].length) continue;
+      let r=0,g=0,b=0;
+      for (let c of groups[i]) {r+=c[0];g+=c[1];b+=c[2];}
+      r/=groups[i].length;g/=groups[i].length;b/=groups[i].length;
+      centroids[i]=[r,g,b];
+    }
+  }
+  return centroids.map(c=>({r:Math.round(c[0]),g:Math.round(c[1]),b:Math.round(c[2])}));
+}
+function nearest(r,g,b) {
+  let best=0,bestD=Infinity;
+  for (let i=0;i<COLOR_PALETTE.length;i++) {
+    const c = COLOR_PALETTE[i];
+    const d = dist2([r,g,b],[c.r,c.g,c.b]);
+    if (d<bestD) {bestD=d;best=i;}
+  }
+  return best;
+}
+
+
+// ========= COMPRESSION + TRI DES COULEURS =========
+function compressAndSortColors() {
+  const used = [];
+  for (let i=0;i<COLOR_PALETTE.length;i++) {
+    if (colorRemaining[i] > 0) {
+      used.push({ old:i, count:colorRemaining[i] });
+    }
+  }
+  used.sort((a,b)=>b.count - a.count);
+  const newPalette = [];
+  const mapOldToNew = {};
+  used.forEach((u,idx)=>{
+    newPalette[idx] = COLOR_PALETTE[u.old];
+    mapOldToNew[u.old] = idx;
+  });
+  for (let y=0;y<LEVEL.length;y++) {
+    for (let x=0;x<LEVEL[y].length;x++) {
+      const v = LEVEL[y][x];
+      if (v>=0) LEVEL[y][x] = mapOldToNew[v];
+    }
+  }
+  const newRemaining = new Array(used.length).fill(0);
+  used.forEach((u,idx)=>{ newRemaining[idx] = u.count; });
+  COLOR_PALETTE = newPalette;
+  colorRemaining = newRemaining;
+}
+
+// ========= PREVIEW PALETTE =========
+function buildPalettePreview() {
+  palettePreview.innerHTML = "";
+  COLOR_PALETTE.forEach(c => {
+    const div = document.createElement("div");
+    div.className = "paletteSwatch";
+    div.style.background = `rgb(${c.r},${c.g},${c.b})`;
+    palettePreview.appendChild(div);
+  });
+}
+
+// ========= AUTO FILL LEVEL ID =========
+const levelTitleInput = document.getElementById("levelTitle");
+const levelIdInput = document.getElementById("levelId");
+
+function slugify(str) {
+  return str.toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+    .replace(/[^a-z0-9]+/g,"_")
+    .replace(/^_+|_+$/g,"");
+}
+
+function autoFillLevelId() {
+  const catId = categorySelect.value || "misc";
+  const baseTitle = levelTitleInput.value || "image";
+  const slug = slugify(baseTitle);
+  levelIdInput.value = `${catId}_${slug || "image"}`;
+}
+
+// quand on modifie le titre ou la catégorie, regénérer un id si l’input est vide
+levelTitleInput.addEventListener("input", () => {
+  if (!levelIdInput.value.trim()) autoFillLevelId();
+});
+categorySelect.addEventListener("change", () => {
+  if (!levelIdInput.value.trim()) autoFillLevelId();
+});
+
+// ========= TEST SCRATCH =========
+const scratchActiveColor = document.getElementById("scratchActiveColor");
+const scratchRemaining = document.getElementById("scratchRemaining");
+const scratchProgressLabel = document.getElementById("scratchProgressLabel");
+const scratchProgressInner = document.getElementById("scratchProgressInner");
+const brushSlider = document.getElementById("brushSlider");
+const brushValue = document.getElementById("brushValue");
+
+brushSlider.addEventListener("input", () => {
+  brushSize = parseInt(brushSlider.value,10);
+  brushValue.textContent = brushSize;
+});
+
+function initScratchCanvas() {
+  const ctx = sctx;
+  ctx.save();
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.clearRect(0,0,scratchCanvas.width,scratchCanvas.height);
+  ctx.restore();
+
+  ctx.fillStyle = "black";
+  ctx.fillRect(0,0,scratchCanvas.width,scratchCanvas.height);
+
+  buildScratchPalette();
+  revealed = 0;
+  totalCells = GRID_W * GRID_H;
+  updateScratchProgress();
+}
+
+function buildScratchPalette() {
+  scratchPaletteRow.innerHTML = "";
+  COLOR_PALETTE.forEach((c,i) => {
+    if (colorRemaining[i] > 0) {
+      const dot = document.createElement("div");
+      dot.className = "dot";
+      dot.style.background = `rgb(${c.r},${c.g},${c.b})`;
+      dot.addEventListener("click", () => {
+        document.querySelectorAll("#scratchPaletteRow .dot").forEach(d => d.classList.remove("active"));
+        dot.classList.add("active");
+        activeColorIndex = i;
+        scratchActiveColor.textContent = `Couleur ${i+1}`;
+        refreshRemainingForActive();
+      });
+      scratchPaletteRow.appendChild(dot);
+    }
+  });
+  const first = scratchPaletteRow.querySelector(".dot");
+  if (first) {
+    first.classList.add("active");
+    activeColorIndex = COLOR_PALETTE.findIndex((_,i)=>colorRemaining[i] > 0);
+    scratchActiveColor.textContent = `Couleur ${activeColorIndex+1}`;
+    refreshRemainingForActive();
+  } else {
+    activeColorIndex = null;
+    scratchActiveColor.textContent = "aucune";
+  }
+}
+
+function refreshRemainingForActive() {
+  if (activeColorIndex === null) {
+    scratchRemaining.textContent = "0";
+    return;
+  }
+  scratchRemaining.textContent = colorRemaining[activeColorIndex];
+}
+
+function updateScratchProgress() {
+  const p = totalCells > 0 ? Math.floor((revealed/totalCells)*100) : 0;
+  scratchProgressLabel.textContent = p + "%";
+  scratchProgressInner.style.width = p + "%";
+}
+
+// mapping coord -> cellule
+function scratchAtCanvas(x,y) {
+  if (activeColorIndex === null) return;
+  const W = GRID_W;
+  const H = GRID_H;
+  if (!W || !H) return;
+
+  const rect = scratchCanvas.getBoundingClientRect();
+  const px = x - rect.left;
+  const py = y - rect.top;
+
+  const cellW = scratchCanvas.width / W;
+  const cellH = scratchCanvas.height / H;
+  const gx = Math.floor(px / cellW);
+  const gy = Math.floor(py / cellH);
+
+  for (let dy=-brushSize; dy<=brushSize; dy++) {
+    for (let dx=-brushSize; dx<=brushSize; dx++) {
+      const X = gx+dx, Y = gy+dy;
+      if (X<0 || Y<0 || X>=W || Y>=H) continue;
+      if (LEVEL[Y][X] !== activeColorIndex) continue;
+      LEVEL[Y][X] = -1;
+      revealed++;
+      colorRemaining[activeColorIndex]--;
+
+      const col = COLOR_PALETTE[activeColorIndex];
+      sctx.fillStyle = `rgb(${col.r},${col.g},${col.b})`;
+      sctx.fillRect(
+        X * cellW,
+        Y * cellH,
+        Math.ceil(cellW),
+        Math.ceil(cellH)
+      );
+
+    }
+  }
+  refreshRemainingForActive();
+  updateScratchProgress();
+}
+
+// souris
+scratchCanvas.addEventListener("mousemove", e => {
+  if (e.buttons !== 1) return; // pas de drag -> pas de scratch
+  scratchAtCanvas(e.clientX,e.clientY);
+});
+// tactile
+scratchCanvas.addEventListener("touchstart", e => {
+  scratchingTouch = true;
+  e.preventDefault();
+  const t = e.touches[0];
+  scratchAtCanvas(t.clientX,t.clientY);
+},{passive:false});
+scratchCanvas.addEventListener("touchmove", e => {
+  if (!scratchingTouch) return;
+  e.preventDefault();
+  const t = e.touches[0];
+  scratchAtCanvas(t.clientX,t.clientY);
+},{passive:false});
+scratchCanvas.addEventListener("touchend", ()=>{scratchingTouch=false;});
+scratchCanvas.addEventListener("touchcancel", ()=>{scratchingTouch=false;});
+document.addEventListener("touchmove", e => {
+  if (scratchingTouch) e.preventDefault();
+},{passive:false});
+
+// ========= EXPORT =========
+const btnExportHidden = document.getElementById("btnExportHidden");
+const btnExportMask = document.getElementById("btnExportMask");
+const btnExportIndex = document.getElementById("btnExportIndex");
+const btnExportPalette = document.getElementById("btnExportPalette");
+const btnExportMeta = document.getElementById("btnExportMeta");
+const btnExportGrid = document.getElementById("btnExportGrid");
+
+btnExportGrid.addEventListener("click", () => {
+  if (!LEVEL.length) { 
+    alert("Génère d’abord une grille."); 
+    return;
+  }
+  downloadJSON(LEVEL, getLevelIdOrDefault() + "_grid.json");
+});
+
+
+btnExportHidden.addEventListener("click", () => {
+  if (!LEVEL.length) {alert("Génère d’abord une grille.");return;}
+  downloadDataURL(resizedCanvas.toDataURL("image/png"), getLevelIdOrDefault()+"_hidden.png");
+});
+
+btnExportMask.addEventListener("click", () => {
+  if (!LEVEL.length) {alert("Génère d’abord une grille.");return;}
+  const width = GRID_W;
+  const height = GRID_H;
+  const c = document.createElement("canvas");
+  c.width = width; c.height = height;
+  const ctx = c.getContext("2d");
+  ctx.fillStyle = "black";
+  ctx.fillRect(0,0,width,height);
+  downloadDataURL(c.toDataURL("image/png"), getLevelIdOrDefault()+"_mask.png");
+});
+
+btnExportIndex.addEventListener("click", () => {
+  if (!LEVEL.length) {alert("Génère d’abord une grille.");return;}
+  const width = GRID_W;
+  const height = GRID_H;
+  const c = document.createElement("canvas");
+  c.width = width; c.height = height;
+  const ctx = c.getContext("2d");
+  const img = ctx.getImageData(0,0,width,height);
+  for (let y=0;y<height;y++) {
+    for (let x=0;x<width;x++) {
+      const id = (y*width+x)*4;
+      let col = LEVEL[y][x];
+      if (col<0) col=0;
+      img.data[id] = col;
+      img.data[id+1] = col;
+      img.data[id+2] = col;
+      img.data[id+3] = 255;
+    }
+  }
+  ctx.putImageData(img,0,0);
+  downloadDataURL(c.toDataURL("image/png"), getLevelIdOrDefault()+"_indexMap.png");
+});
+
+btnExportPalette.addEventListener("click", () => {
+  if (!COLOR_PALETTE.length) {alert("Génère d’abord une grille.");return;}
+  downloadJSON(COLOR_PALETTE, getLevelIdOrDefault()+"_palette.json");
+});
+
+btnExportMeta.addEventListener("click", () => {
+  if (!LEVEL.length) {alert("Génère d’abord une grille.");return;}
+  const meta = buildMeta();
+  downloadJSON(meta, getLevelIdOrDefault()+"_meta.json");
+});
+
+function getLevelIdOrDefault() {
+  return (levelIdInput.value || "level").trim();
+}
+
+function buildMeta() {
+  const catId = categorySelect.value || "misc";
+  const cat = CATEGORIES.find(c => c.id===catId);
+  const title = levelTitleInput.value || "Image sans titre";
+  return {
+    id: getLevelIdOrDefault(),
+    title,
+    categoryId: catId,
+    categoryName: cat ? cat.name : catId,
+    size: LEVEL.length,
+    colors: COLOR_PALETTE.length,
+    created: new Date().toISOString()
+  };
+}
+
+function downloadDataURL(dataURL, filename) {
+  const a = document.createElement("a");
+  a.href = dataURL;
+  a.download = filename;
+  a.click();
+}
+
+function downloadJSON(obj, filename) {
+  const blob = new Blob([JSON.stringify(obj,null,2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ========= SNIPPET LEVELS.JSON =========
+const levelsSnippet = document.getElementById("levelsSnippet");
+const btnCopySnippet = document.getElementById("btnCopySnippet");
+
+function buildLevelsSnippet() {
+  if (!LEVEL.length) {levelsSnippet.value="";return;}
+  const meta = buildMeta();
+  const snippet = JSON.stringify({
+    id: meta.id,
+    title: meta.title
+  }, null, 2);
+  levelsSnippet.value = snippet;
+}
+
+btnCopySnippet.addEventListener("click", () => {
+  levelsSnippet.select();
+  document.execCommand("copy");
+});
+
+// ========= PUBLICATION DANS LE JEU (via serveur Node) =========
+const btnPublishGame = document.getElementById("btnPublishGame");
+
+btnPublishGame.addEventListener("click", async () => {
+  if (!LEVEL.length || !COLOR_PALETTE.length) {
+    alert("Génère d'abord une grille (image + couleurs).");
+    return;
+  }
+
+  const meta = buildMeta();
+  const grid = LEVEL;
+  const palette = COLOR_PALETTE;
+
+  let gameGrid = null;
+  if (GJ_GRID && GJ_GRID.length > 0 && GJ_ROWS > 0 && GJ_COLS > 0) {
+    gameGrid = [];
+    for (let r = 0; r < GJ_ROWS; r++) {
+      const row = [];
+      for (let c = 0; c < GJ_COLS; c++) row.push(GJ_GRID[r * GJ_COLS + c]);
+      gameGrid.push(row);
+    }
+  }
+
+  // Image en base64 JPEG pour économiser l'espace IndexedDB
+  const imageBase64 = resizedCanvas.toDataURL('image/jpeg', 0.85);
+
+  btnPublishGame.textContent = '⏳ Publication...';
+  btnPublishGame.disabled = true;
+
+  try {
+    await rcPublishLevel({ meta, grid, palette, gameGrid, imageBase64 });
+    alert("Niveau publié ! 🎉" + (gameGrid ? "\nGrille de jeu incluse ✅" : ""));
+  } catch(e) {
+    console.error(e);
+    alert("Erreur lors de la publication : " + e.message);
+  } finally {
+    btnPublishGame.textContent = '🚀 Publier dans le jeu';
+    btnPublishGame.disabled = false;
+  }
+});
+
+// init de l’ID si titre vide
+autoFillLevelId();
+
+// ========= GRILLE DE JEU — SOLUTION GAGNANTE =========
+
+let GJ_COLS = 5;
+let GJ_ROWS = 0;
+let GJ_GRID = []; // tableau plat : -1=vide, -2=rocher, N=paletteIdx
+let GJ_SOLUTION = []; // ordre de résolution [paletteIdx, paletteIdx, ...]
+let GJ_TRAY_SIZE = 7;
+const GJ_ROCK = -2;
+let gj_rockMode = false;
+let ggPainting = false;
+
+const gameGridCanvas = document.getElementById('gameGridCanvas');
+const ggCtx = gameGridCanvas.getContext('2d');
+const GG_CELL = 52;
+const GG_GAP = 4;
+
+// ---- Construire la palette de couleurs dans l'ordre de résolution ----
+function buildSolutionOrderUI() {
+  if (!COLOR_PALETTE.length) return;
+  const container = document.getElementById('solutionOrder');
+  container.innerHTML = '';
+  GJ_SOLUTION = [];
+
+  // Ajouter chaque couleur de la palette comme chip draggable
+  COLOR_PALETTE.forEach((c, i) => {
+    const chip = makeSolutionChip(i, c);
+    container.appendChild(chip);
+    GJ_SOLUTION.push(i);
+  });
+
+  initDragSort();
+}
+
+function makeSolutionChip(paletteIdx, c) {
+  const chip = document.createElement('div');
+  chip.draggable = true;
+  chip.dataset.pidx = paletteIdx;
+  chip.style.cssText = `
+    width:36px;height:36px;border-radius:50%;
+    background:rgb(${c.r},${c.g},${c.b});
+    border:3px solid rgba(255,255,255,0.7);
+    box-shadow:0 2px 8px rgba(0,0,0,0.25);
+    cursor:grab;display:flex;align-items:center;justify-content:center;
+    font-size:11px;font-weight:700;color:rgba(0,0,0,0.35);
+    flex-shrink:0;
+    transition:transform 0.1s;
+  `;
+  chip.textContent = paletteIdx + 1;
+  return chip;
+}
+
+function initDragSort() {
+  const container = document.getElementById('solutionOrder');
+  let dragEl = null;
+
+  container.querySelectorAll('[draggable]').forEach(el => {
+    el.addEventListener('dragstart', e => {
+      dragEl = el;
+      setTimeout(() => el.style.opacity = '0.4', 0);
+    });
+    el.addEventListener('dragend', e => {
+      el.style.opacity = '1';
+      dragEl = null;
+      updateSolutionFromDOM();
+    });
+    el.addEventListener('dragover', e => {
+      e.preventDefault();
+      if (dragEl && dragEl !== el) {
+        const rect = el.getBoundingClientRect();
+        const mid = rect.left + rect.width / 2;
+        if (e.clientX < mid) container.insertBefore(dragEl, el);
+        else container.insertBefore(dragEl, el.nextSibling);
+      }
+    });
+  });
+}
+
+function updateSolutionFromDOM() {
+  const chips = document.getElementById('solutionOrder').querySelectorAll('[data-pidx]');
+  GJ_SOLUTION = Array.from(chips).map(c => parseInt(c.dataset.pidx));
+}
+
+// Boutons ordre
+document.getElementById('btnAutoOrder').addEventListener('click', () => {
+  buildSolutionOrderUI();
+});
+
+document.getElementById('btnShuffleOrder').addEventListener('click', () => {
+  updateSolutionFromDOM();
+  for (let i = GJ_SOLUTION.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [GJ_SOLUTION[i], GJ_SOLUTION[j]] = [GJ_SOLUTION[j], GJ_SOLUTION[i]];
+  }
+  rebuildSolutionDOM();
+});
+
+document.getElementById('btnClearOrder').addEventListener('click', () => {
+  GJ_SOLUTION = [];
+  document.getElementById('solutionOrder').innerHTML = '';
+});
+
+function rebuildSolutionDOM() {
+  const container = document.getElementById('solutionOrder');
+  container.innerHTML = '';
+  GJ_SOLUTION.forEach(pidx => {
+    const c = COLOR_PALETTE[pidx];
+    if (c) container.appendChild(makeSolutionChip(pidx, c));
+  });
+  initDragSort();
+}
+
+// ---- CONSTRUIRE LE NIVEAU À PARTIR DE LA SOLUTION ----
+document.getElementById('btnBuildLevel').addEventListener('click', buildLevelFromSolution);
+
+function buildLevelFromSolution() {
+  if (!COLOR_PALETTE.length) { alert("Génère d'abord la grille image."); return; }
+  updateSolutionFromDOM();
+  if (!GJ_SOLUTION.length) { alert("Définis l'ordre de résolution."); return; }
+
+  GJ_COLS = Math.max(2, Math.min(8, parseInt(document.getElementById('gameGridCols').value) || 5));
+  GJ_TRAY_SIZE = Math.max(5, Math.min(10, parseInt(document.getElementById('traySize').value) || 7));
+
+  const n = GJ_SOLUTION.length; // nb de couleurs
+  const total = n * 3;
+  GJ_ROWS = Math.ceil(total / GJ_COLS);
+  GJ_GRID = new Array(GJ_COLS * GJ_ROWS).fill(-1);
+
+  // ---- ALGORITHME DE PLACEMENT AVEC DÉPENDANCES ----
+  //
+  // Principe : on remplit la grille colonne par colonne, de bas en haut.
+  // Chaque colonne reçoit UN bloc de couleurs soigneusement choisi pour
+  // créer des dépendances : la couleur jouée en premier (index 0 dans solution)
+  // doit être accessible, les suivantes cachées derrière.
+  //
+  // Stratégie par rangée :
+  // - Row 0 (haut) : couleurs à jouer EN PREMIER (début de solution)
+  // - Rows du milieu : couleurs intermédiaires, mélangées
+  // - Row bas : couleurs à jouer EN DERNIER (fin de solution)
+  //
+  // Pour créer des dépendances : dans une même colonne, on empile
+  // couleur_tardive (bas) → couleur_précoce (haut)
+  // Ainsi la couleur précoce bloque l'accès à la tardive.
+
+  // Créer un pool de 3 exemplaires par couleur
+  const pool = {}; // pidx → [pidx, pidx, pidx]
+  GJ_SOLUTION.forEach(pidx => { pool[pidx] = [pidx, pidx, pidx]; });
+
+  // Assigner les pastilles aux colonnes avec dépendances
+  // On va remplir colonne par colonne de haut en bas
+  // Chaque colonne = 3 cases (une par rangée si GJ_ROWS=3, sinon adapter)
+
+  // Créer la liste ordonnée complète avec mélange intelligent
+  // Règle : les 3 pastilles d'une couleur doivent être dans 3 colonnes différentes
+  // ET la pastille la plus "haute" (row 0) doit correspondre à une couleur jouée tôt
+
+  // On remplit colonne par colonne
+  // Pour chaque colonne, on choisit GJ_ROWS pastilles :
+  // - 1 pastille de couleur "précoce" pour la row 0
+  // - les autres pastilles de couleurs "tardives" pour les rows suivantes
+
+  // Distribution : associer chaque couleur à ses 3 positions (col0, col1, col2)
+  // On répartit les couleurs de façon à ce que chaque colonne ait
+  // une pastille accessible (row 0) d'une couleur différente
+
+  const positions = []; // liste de [row, col] à remplir
+  for (let row = 0; row < GJ_ROWS; row++) {
+    for (let col = 0; col < GJ_COLS; col++) {
+      if (row * GJ_COLS + col < total) positions.push([row, col]);
+    }
+  }
+
+  // Stratégie : distribuer les couleurs par ordre de priorité
+  // Couleur 0 (jouée en 1er) → mettre une pastille en row 0, les autres plus bas
+  // Couleur n-1 (jouée en dernier) → toutes en rows basses
+
+  // Construire le placement optimal :
+  // Pour chaque couleur i dans GJ_SOLUTION (ordre 0=premier, n-1=dernier) :
+  //   - 1 pastille en row = floor(i * GJ_ROWS / n)  (distribue progressivement)
+  //   - 2 pastilles dans les rows suivantes
+
+  const assignments = []; // [pidx, row_target]
+  GJ_SOLUTION.forEach((pidx, orderIdx) => {
+    // La row minimale pour cette couleur (plus l'ordre est tardif, plus c'est bas)
+    const minRow = Math.floor(orderIdx * GJ_ROWS / n);
+    const maxRow = Math.min(GJ_ROWS - 1, minRow + 1);
+    // 1 pastille à minRow, 2 pastilles à maxRow
+    assignments.push([pidx, minRow]);
+    assignments.push([pidx, maxRow]);
+    assignments.push([pidx, GJ_ROWS - 1 >= maxRow + 1 ? maxRow + 1 : maxRow]);
+  });
+
+  // Mélanger les assignments à row égale (pour ne pas avoir les mêmes couleurs
+  // dans la même colonne)
+  // Regrouper par row
+  const byRow = {};
+  assignments.forEach(([pidx, row]) => {
+    if (!byRow[row]) byRow[row] = [];
+    byRow[row].push(pidx);
+  });
+
+  // Mélanger chaque rangée
+  Object.values(byRow).forEach(arr => {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+  });
+
+  // Remplir la grille en plaçant chaque row
+  let colIdx = 0;
+  for (let row = 0; row < GJ_ROWS; row++) {
+    const rowItems = byRow[row] || [];
+    // Compléter si pas assez d'items
+    rowItems.forEach((pidx, i) => {
+      const col = (colIdx + i) % GJ_COLS;
+      const gridIdx = row * GJ_COLS + col;
+      if (GJ_GRID[gridIdx] === -1) {
+        GJ_GRID[gridIdx] = pidx;
+      } else {
+        // Trouver une case vide dans cette row
+        for (let c = 0; c < GJ_COLS; c++) {
+          const gi = row * GJ_COLS + c;
+          if (GJ_GRID[gi] === -1 && row * GJ_COLS + c < total) {
+            GJ_GRID[gi] = pidx;
+            break;
+          }
+        }
+      }
+    });
+    colIdx = (colIdx + rowItems.length) % GJ_COLS;
+  }
+
+  // Remplir les cases encore vides avec les pastilles non placées
+  const placed = {};
+  GJ_GRID.forEach(v => { if (v >= 0) placed[v] = (placed[v]||0) + 1; });
+  const remaining = [];
+  GJ_SOLUTION.forEach(pidx => {
+    const needed = 3 - (placed[pidx]||0);
+    for (let i = 0; i < needed; i++) remaining.push(pidx);
+  });
+  // Mélanger le reste
+  for (let i = remaining.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [remaining[i], remaining[j]] = [remaining[j], remaining[i]];
+  }
+  let ri = 0;
+  for (let i = 0; i < GJ_GRID.length && ri < remaining.length; i++) {
+    if (GJ_GRID[i] === -1 && i < total) GJ_GRID[i] = remaining[ri++];
+  }
+
+  // Valider et afficher
+  const validation = validateLevel();
+  showValidation(validation);
+  document.getElementById('gameGridWrap').style.display = 'block';
+  drawGameGrid();
+}
+
+// ---- VALIDATION (simulation du joueur) ----
+function validateLevel() {
+  const tray = [];
+  const trayMax = GJ_TRAY_SIZE;
+  const gridSim = [...GJ_GRID];
+  const cols = GJ_COLS;
+  const rows = GJ_ROWS;
+
+  let steps = 0;
+  const maxSteps = GJ_GRID.length * 10;
+
+  function isAccessible(idx) {
+    const row = Math.floor(idx / cols);
+    const col = idx % cols;
+    const dirs = [[-1,0],[1,0],[0,-1],[0,1]];
+    const visited = new Set();
+    const queue = [];
+    for (const [dr, dc] of dirs) {
+      const r = row + dr, c = col + dc;
+      if (r < 0) return true;
+      if (r >= rows || c < 0 || c >= cols) continue;
+      const ni = r * cols + c;
+      if (gridSim[ni] === -1 && !visited.has(ni)) { visited.add(ni); queue.push([r, c]); }
+    }
+    while (queue.length) {
+      const [r, c] = queue.shift();
+      if (r === 0) return true;
+      for (const [dr, dc] of dirs) {
+        const nr = r + dr, nc = c + dc;
+        if (nr < 0) return true;
+        if (nr >= rows || nc < 0 || nc >= cols) continue;
+        const ni = nr * cols + nc;
+        if (gridSim[ni] === -1 && !visited.has(ni)) { visited.add(ni); queue.push([nr, nc]); }
+      }
+    }
+    return false;
+  }
+
+  function countInTray(pidx) {
+    return tray.filter(v => v === pidx).length;
+  }
+
+  function hasMatch() {
+    const counts = {};
+    tray.forEach(v => counts[v] = (counts[v]||0) + 1);
+    return Object.values(counts).some(c => c >= 3);
+  }
+
+  function resolveMatches() {
+    let changed = true;
+    while (changed) {
+      changed = false;
+      const counts = {};
+      tray.forEach(v => counts[v] = (counts[v]||0) + 1);
+      for (const [k, v] of Object.entries(counts)) {
+        if (v >= 3) {
+          let removed = 0;
+          for (let i = tray.length - 1; i >= 0 && removed < 3; i--) {
+            if (tray[i] == k) { tray.splice(i, 1); removed++; }
+          }
+          changed = true;
+          break;
+        }
+      }
+    }
+  }
+
+  const errors = [];
+  const warnings = [];
+
+  while (steps < maxSteps) {
+    steps++;
+    // Résoudre les matches dans le tray
+    resolveMatches();
+
+    // Trouver toutes les pastilles accessibles
+    const accessible = [];
+    for (let i = 0; i < gridSim.length; i++) {
+      if (gridSim[i] >= 0 && gridSim[i] !== GJ_ROCK && isAccessible(i)) {
+        accessible.push(i);
+      }
+    }
+
+    if (!accessible.length) {
+      // Plus de pastilles sur la grille
+      if (tray.length === 0) break; // victoire
+      resolveMatches();
+      if (tray.length === 0) break;
+      errors.push("Fin de grille avec tray non vide");
+      break;
+    }
+
+    // Vérifier la règle de diversité : nb couleurs visibles <= trayMax - 2
+    const visibleColors = new Set(accessible.map(i => gridSim[i]));
+    const trayColors = new Set(tray);
+    const totalDiversity = new Set([...visibleColors, ...trayColors]).size;
+    if (totalDiversity > trayMax - 2) {
+      warnings.push(`Diversité élevée (${totalDiversity} couleurs) — risque de blocage`);
+    }
+
+    if (tray.length >= trayMax) {
+      errors.push("Tray plein sans match possible");
+      break;
+    }
+
+    // Stratégie : prendre la pastille qui rapproche le plus d'un triplet
+    let bestIdx = null;
+    let bestScore = -1;
+    for (const i of accessible) {
+      const pidx = gridSim[i];
+      const inTray = countInTray(pidx);
+      const score = inTray; // 2 = complétera un triplet, 1 = avance, 0 = nouveau
+      if (score > bestScore) { bestScore = score; bestIdx = i; }
+    }
+
+    if (bestIdx === null) bestIdx = accessible[0];
+
+    tray.push(gridSim[bestIdx]);
+    gridSim[bestIdx] = -1;
+  }
+
+  resolveMatches();
+
+  const remaining = gridSim.filter(v => v >= 0 && v !== GJ_ROCK).length;
+  const trayLeft = tray.length;
+
+  return {
+    ok: errors.length === 0 && remaining === 0 && trayLeft === 0,
+    errors,
+    warnings,
+    remaining,
+    trayLeft
+  };
+}
+
+function showValidation(v) {
+  const el = document.getElementById('levelValidation');
+  el.style.display = 'block';
+  if (v.ok) {
+    el.style.background = '#e8f5e9';
+    el.style.color = '#1b5e20';
+    el.style.border = '2px solid #66bb6a';
+    el.innerHTML = '✅ Niveau valide — le joueur peut toujours gagner !';
+  } else {
+    el.style.background = '#fff3e0';
+    el.style.color = '#bf360c';
+    el.style.border = '2px solid #ff7043';
+    let msg = '⚠️ Problèmes détectés :<br>';
+    v.errors.forEach(e => msg += `• ${e}<br>`);
+    v.warnings.forEach(w => msg += `<span style="color:#e65100">• ${w}</span><br>`);
+    if (v.remaining > 0) msg += `• ${v.remaining} pastilles non atteignables<br>`;
+    el.innerHTML = msg;
+  }
+}
+
+// ---- DESSIN DE LA GRILLE ----
+function drawGameGrid() {
+  if (!GJ_ROWS || !GJ_COLS) return;
+  const W = GJ_COLS * (GG_CELL + GG_GAP) + GG_GAP;
+  const H = GJ_ROWS * (GG_CELL + GG_GAP) + GG_GAP;
+  gameGridCanvas.width = W;
+  gameGridCanvas.height = H;
+  ggCtx.clearRect(0, 0, W, H);
+
+  for (let row = 0; row < GJ_ROWS; row++) {
+    for (let col = 0; col < GJ_COLS; col++) {
+      const idx = row * GJ_COLS + col;
+      const val = GJ_GRID[idx];
+      const x = col * (GG_CELL + GG_GAP) + GG_GAP;
+      const y = row * (GG_CELL + GG_GAP) + GG_GAP;
+      ggCtx.save();
+
+      if (val === -1) {
+        ggCtx.beginPath();
+        ggCtx.arc(x+GG_CELL/2, y+GG_CELL/2, GG_CELL/2-2, 0, Math.PI*2);
+        ggCtx.fillStyle = 'rgba(200,210,255,0.2)';
+        ggCtx.fill();
+        ggCtx.strokeStyle = 'rgba(100,120,200,0.15)';
+        ggCtx.setLineDash([4,3]);
+        ggCtx.lineWidth = 1.5;
+        ggCtx.stroke();
+      } else if (val === GJ_ROCK) {
+        ggCtx.beginPath();
+        ggCtx.roundRect(x+4, y+4, GG_CELL-8, GG_CELL-8, 8);
+        ggCtx.fillStyle = '#9e9e9e';
+        ggCtx.fill();
+        ggCtx.strokeStyle = '#616161';
+        ggCtx.lineWidth = 2;
+        ggCtx.setLineDash([]);
+        ggCtx.stroke();
+        ggCtx.fillStyle = 'rgba(255,255,255,0.2)';
+        ggCtx.beginPath();
+        ggCtx.roundRect(x+8, y+8, GG_CELL-20, 8, 4);
+        ggCtx.fill();
+        ggCtx.fillStyle = 'rgba(0,0,0,0.3)';
+        ggCtx.font = '20px system-ui';
+        ggCtx.textAlign = 'center';
+        ggCtx.textBaseline = 'middle';
+        ggCtx.fillText('⬛', x+GG_CELL/2, y+GG_CELL/2);
+      } else {
+        const c = COLOR_PALETTE[val];
+        if (c) {
+          const grad = ggCtx.createRadialGradient(x+GG_CELL*0.38, y+GG_CELL*0.32, 2, x+GG_CELL/2, y+GG_CELL/2, GG_CELL/2);
+          grad.addColorStop(0, 'rgba(255,255,255,0.5)');
+          grad.addColorStop(0.5, `rgb(${c.r},${c.g},${c.b})`);
+          grad.addColorStop(1, `rgb(${Math.max(0,c.r-40)},${Math.max(0,c.g-40)},${Math.max(0,c.b-40)})`);
+          ggCtx.beginPath();
+          ggCtx.arc(x+GG_CELL/2, y+GG_CELL/2, GG_CELL/2-2, 0, Math.PI*2);
+          ggCtx.fillStyle = grad;
+          ggCtx.fill();
+          ggCtx.strokeStyle = 'rgba(255,255,255,0.6)';
+          ggCtx.lineWidth = 2.5;
+          ggCtx.setLineDash([]);
+          ggCtx.stroke();
+
+          // Numéro + rangée pour comprendre l'ordre
+          const orderPos = GJ_SOLUTION.indexOf(val);
+          ggCtx.fillStyle = 'rgba(0,0,0,0.35)';
+          ggCtx.font = `bold ${GG_CELL*0.28}px system-ui`;
+          ggCtx.textAlign = 'center';
+          ggCtx.textBaseline = 'middle';
+          ggCtx.fillText(val+1, x+GG_CELL/2, y+GG_CELL/2);
+        }
+      }
+      ggCtx.restore();
+    }
+  }
+
+  const rocks = GJ_GRID.filter(v => v === GJ_ROCK).length;
+  document.getElementById('gameGridInfo').textContent = `— ${GJ_COLS}×${GJ_ROWS}, ${rocks} rocher(s)`;
+}
+
+// ---- ROCHERS MANUELS ----
+document.getElementById('toolRock').addEventListener('click', () => {
+  gj_rockMode = !gj_rockMode;
+  document.getElementById('toolRock').classList.toggle('active', gj_rockMode);
+});
+
+document.getElementById('btnClearRocks').addEventListener('click', () => {
+  GJ_GRID = GJ_GRID.map(v => v === GJ_ROCK ? -1 : v);
+  drawGameGrid();
+});
+
+function applyRockAt(e) {
+  const rect = gameGridCanvas.getBoundingClientRect();
+  const scaleX = gameGridCanvas.width / rect.width;
+  const scaleY = gameGridCanvas.height / rect.height;
+  const px = (e.clientX - rect.left) * scaleX;
+  const py = (e.clientY - rect.top) * scaleY;
+  const col = Math.floor(px / (GG_CELL + GG_GAP));
+  const row = Math.floor(py / (GG_CELL + GG_GAP));
+  if (col < 0 || col >= GJ_COLS || row < 0 || row >= GJ_ROWS || !GJ_GRID.length) return;
+  const idx = row * GJ_COLS + col;
+  if (GJ_GRID[idx] === -1) {
+    // Uniquement sur cases vides
+    GJ_GRID[idx] = GJ_ROCK;
+    drawGameGrid();
+    const v = validateLevel();
+    showValidation(v);
+  } else if (GJ_GRID[idx] === GJ_ROCK) {
+    GJ_GRID[idx] = -1;
+    drawGameGrid();
+  }
+}
+
+gameGridCanvas.addEventListener('mousedown', e => { if (gj_rockMode) { ggPainting = true; applyRockAt(e); } });
+gameGridCanvas.addEventListener('mousemove', e => { if (ggPainting && gj_rockMode) applyRockAt(e); });
+document.addEventListener('mouseup', () => { ggPainting = false; });
+gameGridCanvas.addEventListener('touchstart', e => { e.preventDefault(); if (gj_rockMode) { ggPainting = true; applyRockAt(e.touches[0]); } }, {passive:false});
+gameGridCanvas.addEventListener('touchmove', e => { e.preventDefault(); if (ggPainting && gj_rockMode) applyRockAt(e.touches[0]); }, {passive:false});
+document.addEventListener('touchend', () => { ggPainting = false; });
+
+// Rebuild quand on génère une nouvelle image
+document.getElementById('btnGenerate').addEventListener('click', () => {
+  setTimeout(() => buildSolutionOrderUI(), 200);
+});
+
+// Override publication
+
+</script>
+</body>

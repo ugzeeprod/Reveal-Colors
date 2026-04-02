@@ -1,0 +1,4083 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Reveal Colors – Jeu</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- PWA / thème -->
+  <meta name="theme-color" content="#fbe9f0" />
+
+  <!-- PWA / manifest -->
+  <link rel="manifest" href="/manifest.webmanifest">
+
+  <!-- iOS PWA -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Reveal Colors">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+
+  <style>
+
+/* HEADER */
+.homeHeader {
+    padding: 24px 0 10px;
+    text-align: center;
+}
+
+.homeLogo {
+    font-size: 22px;
+    font-weight: 700;
+    color: #ff3d99;
+}
+
+.homeSubtitle {
+    font-size: 13px;
+    color: #666;
+    margin-top: 4px;
+}
+
+/* CATEGORIES */
+.categoryTabs {
+    display: flex;
+    overflow-x: auto;
+    gap: 10px;
+    padding: 12px 16px;
+}
+
+.categoryTabs::-webkit-scrollbar {
+    display: none;
+}
+
+.categoryTab {
+    padding: 8px 16px;
+    font-size: 14px;
+    white-space: nowrap;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.4);
+    backdrop-filter: blur(8px);
+    color: #444;
+    transition: 0.25s;
+}
+
+.categoryTab.active {
+    background: #fff;
+    color: #000;
+    font-weight: 600;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+}
+
+/* GALLERY GRID */
+.homeGalleryGrid {
+    padding: 10px 16px;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+}
+
+.galleryItem {
+    background: white;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    display: flex;
+    flex-direction: column;
+}
+
+.galleryItem canvas {
+    width: 100%;
+    height: auto;
+}
+
+.galleryItemTitle {
+    padding: 8px;
+    font-size: 12px;
+    color: #444;
+    display: none;
+}
+ 
+
+/* Fix long-press blue highlight */
+* {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  outline: none;
+}
+:focus { outline: none !important; }
+html, body { -webkit-touch-callout: none; }
+canvas {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: linear-gradient(135deg,#fbe9f0,#e5f0ff);
+      min-height: 100vh;
+      color: #333;
+    }
+    body {
+  padding: 0;
+  margin: 0;
+  background: linear-gradient(135deg,#fbe9f0,#e5f0ff);
+}
+    #app {
+  width: 100%;
+  min-height: 100vh;
+  background: rgba(255,255,255,0.96);
+  border-radius: 0;
+
+  padding: 2px 8px 4px; /* 🔥 beaucoup plus petit */
+
+  display: flex;
+  flex-direction: column;
+
+  gap: 4px; /* 🔥 réduit aussi */
+}
+    header { text-align: center; }
+    .logoTitle {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: .03em;
+      color: #ff6fb5;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.15);
+    }
+    .subtitle {
+      font-size: 13px;
+      color: #777;
+      margin-top: 4px;
+    }
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    section.screen {
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+    }
+    section.screen.active { display: flex; }
+
+    .btn {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 15px;
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+      transition: transform 0.08s ease, box-shadow 0.08s ease, background 0.15s ease;
+    }
+    .btnPrimary {
+      background: linear-gradient(135deg,#ff7ac4,#ff9c9c);
+      color: white;
+      box-shadow: 0 6px 16px rgba(255,122,196,0.45);
+    }
+    .btnPrimary:active {
+      transform: translateY(1px) scale(0.99);
+      box-shadow: 0 3px 10px rgba(255,122,196,0.4);
+    }
+    .btnSecondary {
+      background: #f3f5ff;
+      color: #4353a5;
+      box-shadow: 0 4px 10px rgba(40,40,90,0.10);
+    }
+    .btnSecondary:active {
+      transform: translateY(1px) scale(0.99);
+      box-shadow: 0 2px 7px rgba(40,40,90,0.16);
+    }
+    .btn[disabled] {
+      opacity: .4;
+      cursor: default;
+      box-shadow: none;
+      transform: none;
+    }
+
+    .sectionTitle {
+      font-weight: 600;
+      font-size: 16px;
+      margin-bottom: 4px;
+    }
+    .smallText { font-size: 13px; color: #777; }
+
+    .card {
+      border-radius: 18px;
+      background: #f8f7ff;
+      padding: 10px 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+
+    .globalProgressBar {
+      width: 100%;
+      height: 8px;
+      background: #e0e4ff;
+      border-radius: 999px;
+      overflow: hidden;
+      margin-top: 6px;
+    }
+    .globalProgressInner {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg,#6cc6ff,#a971ff);
+      transition: width 0.2s ease;
+    }
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      font-size: 11px;
+      padding: 3px 8px;
+      background: rgba(255,255,255,0.8);
+      color: #666;
+      border: 1px solid rgba(0,0,0,0.04);
+      margin-top: 4px;
+    }
+
+    .collectionList {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-height: 360px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+    .collectionCard {
+      display: flex;
+      align-items: center;
+      padding: 10px 12px;
+      border-radius: 16px;
+      background: #f9f5ff;
+      cursor: pointer;
+      gap: 10px;
+      box-shadow: 0 4px 10px rgba(90,60,160,0.08);
+      transition: transform 0.1s ease, box-shadow 0.1s ease;
+    }
+    .collectionCard:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 7px 16px rgba(90,60,160,0.12);
+    }
+    .collectionThumb {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      background: linear-gradient(135deg,#ffd3e2,#c5d8ff);
+    }
+    .collectionInfo { flex: 1; }
+    .collectionName { font-weight: 600; font-size: 15px; }
+    .collectionMeta { font-size: 12px; color: #666; margin-top: 3px; }
+
+    .collectionProgressBar {
+      width: 100%;
+      height: 6px;
+      background: #e5e5ff;
+      border-radius: 999px;
+      overflow: hidden;
+      margin-top: 5px;
+    }
+
+    .collectionProgressInner {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg,#7aa0ff,#9b6dff);
+      transition: width 0.25s ease;
+    }
+
+    .levelsGrid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      max-height: 360px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+    .levelCard {
+      background: #f7f7ff;
+      border-radius: 14px;
+      padding: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.06);
+      cursor: pointer;
+      transition: transform 0.08s ease, box-shadow 0.08s ease;
+    }
+    .levelCard:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 14px rgba(0,0,0,0.12);
+    }
+    .levelThumb {
+      border-radius: 10px;
+      background: linear-gradient(135deg,#ffd3e2,#c5d8ff);
+      height: 70px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(255,255,255,0.95);
+      font-size: 12px;
+      font-weight: 600;
+      text-shadow: 0 1px 4px rgba(0,0,0,0.35);
+      overflow: hidden;
+    }
+    .levelThumbCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    .levelTitle { font-size: 12px; font-weight: 600; color: #444; }
+    .levelStatus { font-size: 11px; color: #777; }
+
+    .gameHeaderRow {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+    .gameTitleBlock {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .gameTitle {
+      font-size: 15px;
+      font-weight: 600;
+    }
+    .gameSubtitle {
+      font-size: 12px;
+      color: #777;
+    }
+    .gameStats {
+      font-size: 12px;
+      text-align: right;
+      color: #555;
+    }
+    .gameCard {
+      margin-top: 6px;
+      border-radius: 20px;
+      background: #f6f5ff;
+      padding: 6px;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+    .gameCanvasWrap {
+      border-radius: 18px;
+      overflow: hidden;
+      background: #000;
+      width: 100%;
+      max-width: 720px;
+      position: relative;
+      margin: 0 auto;
+      transform-origin: center center; /* important pour le zoom + pan */
+      touch-action: none; /* on gère nous-mêmes les gestes */
+    }
+    #gameCanvas,
+    #gameCanvasScratch {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+      background: transparent;
+      display: block;
+    }
+
+    .brushRow {
+      font-size: 12px;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 4px;
+      margin-top: 4px;
+    }
+    .brushRowInner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .brushLabel { font-size: 12px; color: #555; }
+    .brushValue { font-weight: 600; font-size: 12px; }
+    .brushSlider { width: 100%; }
+
+    /* Palette horizontale scrollable propre */
+    .paletteRow {
+      display: flex;
+      flex-direction: row;
+      gap: 14px;
+      padding: 10px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      max-width: 100%;
+      box-sizing: border-box;
+      scroll-behavior: smooth;
+      scrollbar-width: none; /* Firefox */
+    }
+    .paletteRow::-webkit-scrollbar {
+      display: none; /* Chrome / Safari */
+    }
+   .dot {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  position: relative;
+  flex-shrink: 0;
+  cursor: pointer;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  /* 🔥 cercle de progression */
+  background: conic-gradient(
+    #ff7ac4 var(--progress, 100%), 
+    #eee var(--progress, 100%)
+  );
+
+  padding: 4px;
+}
+
+/* intérieur (couleur réelle) */
+.dotInner {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+}
+    .dot.active {
+      transform: scale(1.12);
+      border-width: 4px;
+      border-color: #ff7ac4;
+      box-shadow: 0 0 12px rgba(255,255,255,0.8), 0 4px 14px rgba(0,0,0,0.25);
+      animation: pulseDot 0.25s ease;
+    }
+    
+    .backLink {
+      font-size: 13px;
+      color: #6874c8;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .backLink span { font-size: 16px; }
+
+    
+
+    @keyframes pulseDot {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.15); }
+      100% { transform: scale(1); }
+    }
+
+    /* Pastille qui disparaît en douceur */
+    .dot.disappearing {
+      animation: dotDisappear 0.55s ease forwards;
+    }
+    @keyframes dotDisappear {
+      0% {
+        transform: scale(1) rotate(0deg);
+        opacity: 1;
+      }
+      60% {
+        transform: scale(0.45) rotate(12deg);
+        opacity: 0.6;
+      }
+      100% {
+        transform: scale(0.1) rotate(25deg);
+        opacity: 0;
+      }
+    }
+/* === FULLSCREEN MODE FOR GAME — VERSION CORRECTE === */
+
+/* Conteneur principal sans marges */
+@media (max-width: 768px) {
+  #screen-game.fullscreen #app {
+    padding: 0 !important;
+    border-radius: 0 !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: 100vh !important;
+  }
+}
+
+/* Enlève padding & ombres des blocs sous le canvas */
+#screen-game.fullscreen .gameCard {
+  padding: 0 !important;
+  background: none !important;
+  box-shadow: none !important;
+}
+
+/* Centrage parfait du canvas sur iPhone */
+#screen-game.fullscreen .gameCanvasWrap {
+  position: relative !important;
+  width: 100vw !important;
+  max-width: 100vw !important;
+  border-radius: 0 !important;
+  margin: 0 auto !important;
+
+  
+}
+
+/* Centrer le reste du contenu (header, stats, slider, palette) */
+#screen-game.fullscreen header,
+#screen-game.fullscreen .backLink,
+#screen-game.fullscreen .gameHeaderRow,
+#screen-game.fullscreen .brushRow,
+#screen-game.fullscreen .paletteRow {
+  width: 100%;
+  max-width: 100%;
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+#screen-game.fullscreen {
+  overscroll-behavior: none !important;
+  touch-action: none !important;
+}
+
+#screen-game.fullscreen #gameCanvas,
+#screen-game.fullscreen #gameCanvasScratch {
+  touch-action: none !important;
+}
+
+#screen-game.fullscreen .paletteRow,
+#screen-game.fullscreen .colorBlocksRow {
+  touch-action: pan-x !important;
+}
+
+/* ===== CONVEYOR BELT + COLOR BLOCKS ===== */
+
+.conveyorZone {
+  width: 100%;
+  height: 48px;
+  position: relative;
+  background: #e8e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: inset 0 2px 6px rgba(0,0,0,0.12);
+}
+
+.conveyorZone canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.colorBlocksRow {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  padding: 6px 10px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+  align-items: center;
+  min-height: 64px;
+  scroll-snap-type: x proximity;
+}
+.colorBlocksRow::-webkit-scrollbar { display: none; }
+
+.colorBlock {
+  scroll-snap-align: start;
+}
+
+.colorBlock {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  cursor: pointer;
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  overflow: hidden;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.2);
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+  border: 2px solid rgba(255,255,255,0.3);
+}
+.colorBlock:active { transform: scale(0.93); }
+.colorBlock.active {
+  transform: scale(1.1);
+  box-shadow: 0 0 0 3px white, 0 4px 14px rgba(0,0,0,0.3);
+}
+.colorBlock.depleted {
+  opacity: 0.25;
+  pointer-events: none;
+  transform: scale(0.85);
+}
+
+/* jauge de remplissage qui monte */
+.colorBlockFill {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  background: rgba(255,255,255,0.35);
+  transition: height 0.3s ease;
+}
+
+/* étiquette % */
+.colorBlockLabel {
+  position: relative;
+  font-size: 10px;
+  font-weight: 700;
+  color: white;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+  padding-bottom: 3px;
+  z-index: 1;
+}
+
+
+
+.galleryScreen {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Onglets catégories */
+.categoryTabs {
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  scrollbar-width: none;
+}
+.categoryTabs::-webkit-scrollbar { display: none; }
+
+.categoryTab {
+  flex-shrink: 0;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: #f3f5ff;
+  color: #555;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+  transition: 0.15s;
+}
+.categoryTab.active {
+  background: linear-gradient(135deg,#ff7ac4,#ff9c9c);
+  color: white;
+}
+
+/* Grille d’images */
+.homeGalleryGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  max-height: 70vh;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.galleryItem {
+  background: #f7f7ff;
+  border-radius: 14px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.08);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.galleryItem canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.galleryItemTitle {
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  right: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: white;
+  text-shadow: 0 0 4px rgba(0,0,0,0.4);
+}
+
+.screen {
+  display: none;
+}
+.screen.active {
+  display: flex;
+}
+
+/* Bottom Navigation */
+#bottomNav {
+  position: fixed;
+  bottom: 0;
+  left: 0; right: 0;
+  height: 70px;
+  background: rgba(255,255,255,0.8);
+  backdrop-filter: blur(12px);
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  border-top: 1px solid rgba(0,0,0,0.1);
+  z-index: 9999;
+}
+
+.navBtn {
+  background: none;
+  border: none;
+  flex: 1;
+  text-align: center;
+  padding-top: 5px;
+  font-size: 12px;
+  color: #777;
+}
+
+.navBtn.active {
+  color: #ff5bbb;
+  font-weight: 600;
+}
+
+.navIcon {
+  width: 22px;
+  height: 22px;
+  opacity: 0.8;
+}
+
+.navBtn.active .navIcon {
+  opacity: 1;
+}
+
+#bottomNav {
+    display: none;
+}
+
+/* ===== SPLASH SCREEN ===== */
+#splashScreen {
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(135deg,#fbe9f0,#e5f0ff);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  z-index: 9999;
+  opacity: 1;
+  animation: splashFade 0.6s ease forwards 4.5s; /* fade-out */
+}
+
+#splashLogo {
+  width: 120px;
+  height: 120px;
+  margin-bottom: 18px;
+  opacity: 0;
+  border-radius: 28px;       /* ⬅️ arrondi style app iOS */
+  box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+  overflow: hidden;          /* ⬅️ pour que les bords soient nets */
+  transform: scale(0.6);
+  animation: logoPop 0.7s ease-out forwards;
+}
+
+
+.splashTitle {
+  font-size: 28px;
+  font-weight: 700;
+  color: #ff6fb5;
+  opacity: 0;
+  animation: fadeIn 1s ease forwards 0.4s;
+}
+
+.splashSubtitle {
+  font-size: 14px;
+  margin-top: 6px;
+  color: #666;
+  opacity: 0;
+  animation: fadeIn 1s ease forwards 0.8s;
+}
+
+/* === Animations === */
+
+@keyframes logoPop {
+  0% { opacity:0; transform:scale(0.6); }
+  60% { opacity:1; transform:scale(1.08); }
+  100% { opacity:1; transform:scale(1); }
+}
+
+@keyframes fadeIn {
+  from { opacity:0; transform:translateY(8px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+
+@keyframes splashFade {
+  to { opacity: 0; visibility: hidden; }
+}
+
+
+@media (min-width: 768px) {
+
+  #app {
+    max-width: 700px;
+    margin: 0 auto;
+  }
+
+  /* 🔥 LAYOUT MOBILE PARTOUT */
+  .gameCard {
+    display: flex;
+    flex-direction: column; /* 🔥 IMPORTANT */
+    align-items: center;
+    gap: 12px;
+  }
+
+  .gameCanvasWrap {
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto;
+  }
+
+  .brushRow {
+    width: 100%;
+    max-width: 600px;
+  }
+
+  .paletteRow {
+    width: 100%;
+    max-width: 600px;
+
+    display: flex;
+    flex-direction: row;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+
+    gap: 14px;
+  }
+}
+
+@media (min-width: 768px) {
+
+  /* 🔥 centre tout comme mobile */
+  .gameCard {
+    display: flex;
+    flex-direction: column !important;
+    align-items: center;
+    width: 100%;
+  }
+
+  /* 🔥 limite le canvas */
+  .gameCanvasWrap {
+    width: 100%;
+    max-width: 500px !important;
+    margin: 0 auto;
+  }
+
+  /* 🔥 slider aligné */
+  .brushRow {
+    width: 100%;
+    max-width: 500px;
+  }
+
+  /* 🔥 palette visible en bas */
+  .paletteRow {
+    width: 100%;
+    max-width: 500px;
+
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+
+    overflow-x: auto;
+    gap: 12px;
+  }
+}
+
+#screen-game.fullscreen #app {
+  max-width: 100vw !important;
+  width: 100vw !important;
+}
+
+
+@media (max-width: 768px) {
+
+  #app {
+    max-width: 100vw !important;
+    width: 100vw !important;
+    margin: 0 !important;
+  }
+
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100vw;
+  overflow-x: hidden;
+}
+
+#app {
+  width: 100vw !important;
+  max-width: 100vw !important;
+  margin: 0 !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+@media (min-width: 768px) {
+  .categoryTabs {
+    justify-content: center;
+    overflow-x: visible; /* enlève le scroll */
+  }
+}
+
+@media (min-width: 768px) {
+
+  .homeGalleryGrid {
+    grid-template-columns: repeat(4, 1fr); /* + de colonnes */
+    gap: 16px;
+    max-width: 800px;
+    margin: 0 auto; /* centre la grille */
+  }
+
+  .galleryItem canvas {
+    transform: scale(0.9); /* réduit légèrement */
+  }
+
+}
+
+
+#screen-game.fullscreen #app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  padding: 0 !important;
+}
+
+#screen-game.fullscreen {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+#screen-game.fullscreen .gameTopBar {
+  flex-shrink: 0;
+  padding: 4px 12px 2px;
+  gap: 2px;
+}
+
+#screen-game.fullscreen .colorsBig {
+  font-size: 13px !important;
+}
+
+#screen-game.fullscreen .progressBar {
+  height: 5px !important;
+}
+
+#screen-game.fullscreen .statsRow {
+  margin: 0 !important;
+}
+
+#screen-game.fullscreen .gameCard {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+  padding: 0 !important;
+  background: none !important;
+  box-shadow: none !important;
+  gap: 4px;
+  margin-top: 0 !important;
+}
+
+/* Canvas image = portion flexible mais limitée */
+#screen-game.fullscreen .gameCanvasWrap {
+  flex: 0 0 auto;
+  height: clamp(120px, 32vh, 260px);
+  width: 100% !important;
+  max-width: 100% !important;
+  border-radius: 0 !important;
+}
+
+/* Zone Block Jam prend tout le reste, sans scroll */
+#screen-game.fullscreen #gameBottomZone {
+  flex: 1 !important;
+  overflow: hidden !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  padding: 4px 8px 8px !important;
+}
+
+
+.gameTopBar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 12px 10px;
+}
+
+/* Ligne principale */
+.topRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.topTitles {
+  flex: 1;
+  text-align: center;
+}
+
+.gameTitle {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.gameSubtitle {
+  font-size: 11px;
+  color: #777;
+}
+
+/* % à droite */
+.topStats {
+  font-size: 14px;
+  font-weight: 600;
+  color: #ff5bbb;
+}
+
+/* barre */
+.progressBar {
+  width: 100%;
+  height: 6px;
+  background: #eee;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg,#ff7ac4,#ff9c9c);
+  transition: width 0.2s ease;
+}
+
+/* stats bas */
+.statsRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #555;
+}
+
+/* 🔥 HEADER CLEAN */
+.gameTopBar {
+  padding: 6px 14px 6px;
+  gap: 5px;
+}
+
+/* retour + titre */
+.topRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.backLink {
+  font-size: 16px;
+  font-weight: 600;
+  color: #ff5bbb;
+}
+
+.topTitles {
+  flex: 1;
+  text-align: center;
+}
+
+.gameTitle {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.gameSubtitle {
+  font-size: 12px;
+  color: #777;
+}
+
+/* 🔥 GROS % */
+.progressBig {
+  font-size: 22px;
+  font-weight: 800;
+  color: #ff5bbb;
+}
+
+/* 🔥 couleurs restantes */
+.colorsStat {
+  font-size: 14px;
+  font-weight: 600;
+  color: #555;
+}
+
+/* 🔥 barre plus épaisse */
+.progressBar {
+  height: 8px;
+}
+
+
+.centeredStats {
+  justify-content: center;
+  align-items: center;
+}
+
+.colorsBig {
+  font-size: 18px;
+  font-weight: 700;
+  color: #555;
+}
+
+.topTitles {
+  transform: translateX(-20px);
+}
+
+
+@media (max-width: 768px) {
+
+  .topRow {
+    position: relative;
+  }
+
+  .topTitles {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+    pointer-events: none;
+  }
+
+}
+
+/* ============================================
+   🎮 VOODOO DESIGN SYSTEM
+   ============================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&display=swap');
+
+:root {
+  --bg: #F0F4FF;
+  --surface: #FFFFFF;
+  --primary: #FF4D6D;
+  --primary-dark: #CC2A4A;
+  --accent: #FFD60A;
+  --accent2: #06D6A0;
+  --text: #1A1A2E;
+  --text-soft: #8890A4;
+  --shadow-color: rgba(0,0,0,0.18);
+  --radius: 20px;
+}
+
+/* ---- BASE ---- */
+html, body {
+  font-family: 'Nunito', system-ui, sans-serif !important;
+  background: var(--bg) !important;
+  color: var(--text) !important;
+}
+
+#app {
+  background: var(--bg) !important;
+  padding: 0 !important;
+}
+
+/* ---- HOME SCREEN ---- */
+.homeHeader {
+  background: linear-gradient(160deg, #FF4D6D 0%, #FF8FA3 100%);
+  padding: 32px 20px 24px !important;
+  text-align: center;
+  border-radius: 0 0 32px 32px;
+  box-shadow: 0 8px 24px rgba(255,77,109,0.35);
+}
+
+.homeLogo {
+  font-size: 28px !important;
+  font-weight: 900 !important;
+  color: white !important;
+  letter-spacing: -0.5px;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.homeSubtitle {
+  color: rgba(255,255,255,0.85) !important;
+  font-size: 14px !important;
+  font-weight: 700;
+  margin-top: 4px !important;
+}
+
+/* ---- CATEGORY TABS ---- */
+.categoryTabs {
+  padding: 16px 16px 8px !important;
+  gap: 8px !important;
+}
+
+.categoryTab {
+  background: white !important;
+  color: var(--text-soft) !important;
+  font-weight: 800 !important;
+  font-size: 13px !important;
+  padding: 8px 16px !important;
+  border-radius: 999px !important;
+  box-shadow: 0 3px 0px rgba(0,0,0,0.12) !important;
+  border: 2px solid transparent !important;
+  transition: all 0.15s !important;
+}
+
+.categoryTab.active {
+  background: var(--primary) !important;
+  color: white !important;
+  border-color: var(--primary-dark) !important;
+  box-shadow: 0 4px 0px var(--primary-dark) !important;
+  transform: translateY(-1px);
+}
+
+/* ---- GALLERY GRID ---- */
+.homeGalleryGrid {
+  padding: 12px 16px 80px !important;
+  gap: 12px !important;
+}
+
+.galleryItem {
+  border-radius: 18px !important;
+  box-shadow: 0 4px 0px rgba(0,0,0,0.15) !important;
+  border: 3px solid rgba(255,255,255,0.9) !important;
+  overflow: hidden !important;
+  transition: transform 0.12s, box-shadow 0.12s !important;
+}
+
+.galleryItem:active {
+  transform: scale(0.96) translateY(2px) !important;
+  box-shadow: 0 1px 0px rgba(0,0,0,0.15) !important;
+}
+
+/* ---- BOTTOM NAV ---- */
+#bottomNav {
+  background: white !important;
+  border-top: none !important;
+  box-shadow: 0 -4px 20px rgba(0,0,0,0.1) !important;
+  border-radius: 24px 24px 0 0 !important;
+  height: 64px !important;
+}
+
+.navBtn {
+  font-family: 'Nunito', sans-serif !important;
+  font-weight: 800 !important;
+  font-size: 11px !important;
+  color: var(--text-soft) !important;
+}
+
+.navBtn.active {
+  color: var(--primary) !important;
+}
+
+/* ---- GAME HEADER ---- */
+.gameTopBar {
+  background: white !important;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08) !important;
+  padding: 10px 16px 8px !important;
+}
+
+.backLink {
+  color: var(--primary) !important;
+  font-weight: 900 !important;
+  font-size: 15px !important;
+}
+
+.gameTitle {
+  font-weight: 900 !important;
+  font-size: 16px !important;
+  color: var(--text) !important;
+}
+
+.gameSubtitle {
+  color: var(--text-soft) !important;
+  font-weight: 700 !important;
+}
+
+.topStats {
+  font-weight: 900 !important;
+  font-size: 16px !important;
+  color: var(--primary) !important;
+}
+
+.colorsBig {
+  font-weight: 900 !important;
+  font-size: 16px !important;
+  color: var(--text) !important;
+}
+
+/* ---- PROGRESS BAR ---- */
+.progressBar {
+  background: #E8ECF8 !important;
+  border-radius: 999px !important;
+  height: 8px !important;
+  overflow: hidden !important;
+}
+
+.progressFill {
+  background: linear-gradient(90deg, var(--primary), var(--accent)) !important;
+  border-radius: 999px !important;
+  transition: width 0.4s cubic-bezier(0.34,1.56,0.64,1) !important;
+}
+
+/* ---- GAME CANVAS ZONE ---- */
+.gameCard {
+  background: #E8ECF8 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+.gameCanvasWrap {
+  border-radius: 12px !important;
+  overflow: hidden !important;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.15) !important;
+}
+
+/* ---- ZONE D'ATTENTE ---- */
+#waitZoneRow {
+  background: white !important;
+  border-radius: 16px !important;
+  box-shadow: 0 3px 0px rgba(0,0,0,0.12) !important;
+  padding: 8px 14px !important;
+  gap: 8px !important;
+  border: 2px solid rgba(0,0,0,0.06) !important;
+}
+
+/* ---- GAME BOTTOM ZONE ---- */
+#gameBottomZone {
+  background: #E8ECF8 !important;
+}
+
+/* ---- MESSAGE BJ ---- */
+#bjMsg {
+  font-weight: 800 !important;
+  font-size: 13px !important;
+  color: var(--text-soft) !important;
+  letter-spacing: 0.2px !important;
+}
+
+/* ---- GAME OVER ---- */
+#bjGameOver {
+  background: white;
+  border-radius: 20px;
+  padding: 16px !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+}
+
+#bjRestartBtn {
+  background: var(--primary) !important;
+  color: white !important;
+  font-family: 'Nunito', sans-serif !important;
+  font-weight: 900 !important;
+  border-radius: 999px !important;
+  box-shadow: 0 4px 0px var(--primary-dark) !important;
+  border: none !important;
+  padding: 10px 24px !important;
+  font-size: 15px !important;
+  transition: transform 0.1s, box-shadow 0.1s !important;
+}
+
+#bjRestartBtn:active {
+  transform: translateY(3px) !important;
+  box-shadow: 0 1px 0px var(--primary-dark) !important;
+}
+
+/* ---- BOUTONS GÉNÉRAUX ---- */
+.btn {
+  font-family: 'Nunito', sans-serif !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.2px !important;
+  border-radius: 999px !important;
+}
+
+.btnPrimary {
+  background: var(--primary) !important;
+  box-shadow: 0 5px 0px var(--primary-dark) !important;
+  transition: transform 0.1s, box-shadow 0.1s !important;
+}
+
+.btnPrimary:active {
+  transform: translateY(4px) !important;
+  box-shadow: 0 1px 0px var(--primary-dark) !important;
+}
+
+/* ---- SPLASH ---- */
+#splashScreen {
+  background: linear-gradient(160deg, #FF4D6D 0%, #FF8FA3 60%, #FFD60A 100%) !important;
+}
+
+.splashTitle {
+  color: white !important;
+  font-family: 'Nunito', sans-serif !important;
+  font-weight: 900 !important;
+  font-size: 34px !important;
+  letter-spacing: -1px !important;
+  text-shadow: 0 3px 12px rgba(0,0,0,0.2) !important;
+}
+
+/* ---- END OVERLAY ---- */
+#endOverlay > div {
+  border-radius: 28px !important;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3) !important;
+  padding: 28px 24px !important;
+}
+
+#endMsg {
+  font-family: 'Nunito', sans-serif !important;
+  font-weight: 900 !important;
+  font-size: 22px !important;
+  color: var(--text) !important;
+  margin-bottom: 16px !important;
+}
+
+/* ---- ANIMATIONS JUICY ---- */
+@keyframes bjCellPop {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.22); }
+  70%  { transform: scale(0.92); }
+  100% { transform: scale(1); }
+}
+
+@keyframes bjCellVanish {
+  0%   { transform: scale(1); opacity: 1; }
+  30%  { transform: scale(1.3); opacity: 0.8; }
+  100% { transform: scale(0); opacity: 0; }
+}
+
+@keyframes waitSlotBounce {
+  0%   { transform: scale(0.5); opacity: 0; }
+  60%  { transform: scale(1.15); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.bj-cell-pop    { animation: bjCellPop 0.25s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+.bj-cell-vanish { animation: bjCellVanish 0.3s ease-in forwards; }
+.bj-slot-bounce { animation: waitSlotBounce 0.3s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+
+/* ---- COLLECTION / LEVELS SCREENS ---- */
+.collectionCard {
+  border-radius: 18px !important;
+  background: white !important;
+  box-shadow: 0 4px 0px rgba(0,0,0,0.1) !important;
+  border: 2px solid rgba(0,0,0,0.04) !important;
+}
+
+.levelCard {
+  border-radius: 16px !important;
+  background: white !important;
+  box-shadow: 0 3px 0px rgba(0,0,0,0.1) !important;
+}
+
+/* ---- SCROLLBAR GLOBAL ---- */
+::-webkit-scrollbar { display: none; }
+* { scrollbar-width: none; }
+
+  </style>
+</head>
+
+<body>
+
+<!-- SPLASH SCREEN -->
+<div id="splashScreen">
+    <img src="icons/icon-192.png" id="splashLogo">
+    <div class="splashTitle">Reveal Colors</div>
+    <div class="splashSubtitle"></div>
+</div>
+
+
+
+
+    <!-- HOME SCREEN -->
+<div id="app">
+  <main id="appMain" style="display:none;">
+
+<section id="screen-home" class="screen">
+    
+    <!-- HEADER -->
+    <header class="homeHeader">
+        <div class="homeLogo">🎨 Reveal Colors</div>
+        <div class="homeSubtitle">Choisis une image et commence à gratter ✨</div>
+    </header>
+
+    <!-- CATEGORIES -->
+    <div id="categoryTabs" class="categoryTabs"></div>
+
+    <!-- GRID -->
+    <div id="homeGalleryGrid" class="homeGalleryGrid"></div>
+</section>
+
+
+    <!-- COLLECTIONS SCREEN -->
+    <section id="screen-collections" class="screen">
+      <div class="backLink" id="back-from-collections">
+        <span>←</span> Retour
+      </div>
+      <div class="sectionTitle" style="margin-top:4px;">Collections</div>
+      <div class="smallText">Choisis un thème d’images à gratter.</div>
+
+      <div id="collectionsList" class="collectionList"></div>
+    </section>
+
+    <!-- LEVELS SCREEN -->
+    <section id="screen-levels" class="screen">
+      <div class="backLink" id="back-from-levels">
+        <span>←</span> Retour
+      </div>
+      <div class="sectionTitle" id="levelsTitle" style="margin-top:4px;">Niveaux</div>
+      <div class="smallText" id="levelsSubtitle"></div>
+
+      <div id="levelsGrid" class="levelsGrid"></div>
+    </section>
+
+    <!-- GAME SCREEN -->
+    <section id="screen-game" class="screen">
+      
+
+      <div class="gameTopBar">
+
+  <div class="topRow">
+    <div class="backLink" id="back-from-game">
+      ← Retour
+    </div>
+
+    <div class="topTitles">
+      <div class="gameTitle" id="gameTitle">Titre</div>
+      <div class="gameSubtitle" id="gameSubtitle">Collection</div>
+    </div>
+
+    <div class="topStats">
+      <div id="gameProgressPercent">0%</div>
+    </div>
+  </div>
+
+  <!-- 🔥 barre de progression -->
+  <div class="progressBar">
+    <div class="progressFill" id="progressFill"></div>
+  </div>
+
+  <!-- 🔥 stats -->
+  <div class="statsRow centeredStats">
+  <div class="colorsBig">
+    <span id="colorsRemaining">0</span> / <span id="colorsTotal">0</span>
+  </div>
+</div>
+
+      <div class="gameCard">
+        <div class="gameCanvasWrap" id="gameCanvasWrap">
+          <canvas id="gameCanvas" width="360" height="360"></canvas>
+          <canvas id="gameCanvasScratch" width="360" height="360"></canvas>
+          <!-- canvas de particules pour l'animation d'aspiration -->
+          <canvas id="gameCanvasParticles" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:10;"></canvas>
+        </div>
+
+        <!-- ZONE BLOCK JAM -->
+        <div id="gameBottomZone" style="width:100%;display:flex;flex-direction:column;align-items:center;gap:6px;padding:6px 0 4px;user-select:none;flex:1;min-height:0;overflow:hidden;">
+
+          <!-- ZONE D'ATTENTE -->
+          <div id="waitZoneRow" style="display:flex;gap:6px;background:rgba(0,0,0,0.06);padding:6px 10px;border-radius:14px;justify-content:center;align-items:center;flex-shrink:0;"></div>
+
+          <!-- GRILLE BLOCK JAM -->
+          <div id="blockJamGrid" style="display:grid;gap:7px;padding:2px 8px;flex-shrink:0;"></div>
+
+          <!-- MESSAGE -->
+          <div id="bjMsg" style="font-size:11px;color:#888;height:14px;text-align:center;flex-shrink:0;"></div>
+
+          <!-- GAME OVER OVERLAY -->
+          <div id="bjGameOver" style="display:none;flex-direction:column;align-items:center;gap:8px;padding:8px;">
+            <div style="font-size:15px;font-weight:600;color:#e24b4a;">Zone pleine — game over !</div>
+            <button id="bjRestartBtn" style="padding:8px 20px;border-radius:999px;border:none;background:#ff7ac4;color:white;font-weight:600;font-size:14px;cursor:pointer;">Recommencer</button>
+          </div>
+
+        </div>
+      </div>
+    </section>
+</main>
+</div> <!-- fin du #app -->
+
+<script src="idb.js"></script>
+<script>
+
+// ================= IndexedDB Helper + Compression ==================
+
+const DB_NAME = "RevealColorsDB";
+const STORE_NAME = "levelProgress";
+const DB_VERSION = 2;
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    request.onupgradeneeded = (event) => {
+      const db = event.target.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME, { keyPath: "id" });
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function idbSet(key, value) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    tx.objectStore(STORE_NAME).put({ id: key, value });
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function idbGet(key) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, "readonly");
+    const req = tx.objectStore(STORE_NAME).get(key);
+    req.onsuccess = () => resolve(req.result ? req.result.value : null);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function compressGrid(grid) {
+  const revealed = [];
+  for (let y = 0; y < grid.length; y++) {
+    for (let x = 0; x < grid[y].length; x++) {
+      if (grid[y][x] === -1) revealed.push(`${x},${y}`);
+    }
+  }
+  return revealed;
+}
+
+function decompressGrid(revealedList, baseGrid) {
+  const grid = baseGrid.map(row => row.slice());
+  if (!revealedList) return grid;
+  for (const str of revealedList) {
+    const [x,y] = str.split(',').map(Number);
+    grid[y][x] = -1;
+  }
+  return grid;
+}
+// ====================================================================
+
+
+
+  // =========================
+  // HAPTIC / VIBRATION HELPER
+  // =========================
+  function triggerHaptic(level = "light") {
+    try {
+      if ("vibrate" in navigator) {
+        if (level === "heavy") {
+          navigator.vibrate(30);
+        } else if (level === "medium") {
+          navigator.vibrate(15);
+        } else {
+          navigator.vibrate(8);
+        }
+      }
+    } catch (e) {
+      console.warn("Haptic error", e);
+    }
+  }
+
+  // =========================
+  // STATE GLOBAL
+  // =========================
+  let LEVELS_DATA = { collections: [] };
+
+  const screens = {
+    home: document.getElementById("screen-home"),
+    collections: document.getElementById("screen-collections"),
+    levels: document.getElementById("screen-levels"),
+    game: document.getElementById("screen-game")
+  };
+
+
+  // Empêche la page de scroller pendant le jeu
+  const screenGameEl = document.getElementById("screen-game");
+
+  function lockBodyScrollForGame(enable) {
+    if (enable) {
+      // On mémorise l'état précédent pour le restaurer ensuite
+      document.body.dataset.prevOverflow = document.body.style.overflow || "";
+      document.body.style.overflow = "hidden";
+    } else {
+      if (document.body.dataset.prevOverflow !== undefined) {
+        document.body.style.overflow = document.body.dataset.prevOverflow;
+        delete document.body.dataset.prevOverflow;
+      } else {
+        document.body.style.overflow = "";
+      }
+    }
+  }
+
+  // Sur iOS, on doit empêcher le comportement par défaut sur les touchmove
+ screenGameEl.addEventListener("touchmove", (e) => {
+  if (!screenGameEl.classList.contains("fullscreen")) return;
+
+  // Si on glisse dans la palette (scroll horizontal), on laisse passer !
+  if (e.target.closest(".paletteRow") || e.target.closest(".colorBlocksRow")) return;
+
+  // Sinon on bloque le scroll
+  e.preventDefault();
+}, { passive: false });
+
+
+
+ function showScreen(name) {
+    // 1. Cacher tous les écrans
+    document.querySelectorAll(".screen").forEach(s => {
+        s.classList.remove("active");
+    });
+
+    // 2. Afficher celui qu’on veut
+    if (screens[name]) {
+        screens[name].classList.add("active");
+    }
+}
+
+
+  // --- progression globale
+  function computeGlobalProgress() {
+    const total = LEVELS_DATA.collections.reduce(
+      (sum,c)=>sum + (c.levels?.length||0),
+      0
+    );
+    let completed = 0;
+    try {
+      const raw = localStorage.getItem("sbn_completed_levels");
+      if (raw){
+        const arr = JSON.parse(raw);
+        if (Array.isArray(arr)) completed = arr.length;
+      }
+    } catch{}
+    if (completed>total) completed=total;
+    return {completed,total};
+  }
+  function refreshGlobalProgressUI() {
+  const { completed, total } = computeGlobalProgress();
+  const label = document.getElementById("globalProgressLabel");
+  const bar   = document.getElementById("globalProgressInner");
+
+  // Dans ton nouveau menu ces éléments n'existent plus,
+  // donc si on ne les trouve pas on sort sans rien faire.
+  if (!label || !bar) return;
+
+  label.textContent = `${completed} / ${total} images`;
+  let perc = total > 0 ? (completed / total) * 100 : 0;
+  bar.style.width = perc + "%";
+}
+
+  // --- last played
+  function loadLastPlayed() {
+    try {
+      const raw = localStorage.getItem("sbn_last_level");
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch {return null;}
+  }
+  function saveLastPlayed(collectionId, levelId) {
+    const obj = {collectionId,levelId,time:Date.now()};
+    localStorage.setItem("sbn_last_level", JSON.stringify(obj));
+  }
+  function markLevelCompleted(levelId) {
+    let arr=[];
+    try {
+      const raw=localStorage.getItem("sbn_completed_levels");
+      if (raw) arr=JSON.parse(raw);
+    } catch{}
+    if (!Array.isArray(arr)) arr=[];
+    if (!arr.includes(levelId)) arr.push(levelId);
+    localStorage.setItem("sbn_completed_levels", JSON.stringify(arr));
+  }
+  function isLevelCompleted(levelId) {
+    try {
+      const raw = localStorage.getItem("sbn_completed_levels");
+      if (!raw) return false;
+      const arr = JSON.parse(raw);
+      if (!Array.isArray(arr)) return false;
+      return arr.includes(levelId);
+    } catch {return false;}
+  }
+  function refreshContinueButton() {
+  const btnContinue = document.getElementById("btn-continue");
+
+  // Nouveau menu : plus de bouton "Continuer"
+  if (!btnContinue) return;
+
+  const last = loadLastPlayed();
+  if (!last) { 
+    btnContinue.disabled = true; 
+    return; 
+  }
+  btnContinue.disabled = false;
+}
+
+
+  // =========================
+  // SAUVEGARDE PAR NIVEAU
+  // =========================
+  function levelProgressKey(collectionId, levelId) {
+    return `${collectionId}_${levelId}`;
+  }
+  
+async function loadLevelProgressData(collectionId, levelId) {
+  const key = levelProgressKey(collectionId, levelId);
+  try {
+    return await rcGetProgress(key);
+  } catch(e) {
+    console.error("IndexedDB load error:", e);
+    return null;
+  }
+}
+  
+  
+async function saveLevelProgressData(payload) {
+  if (!payload || !payload.collectionId || !payload.levelId) return;
+  const key = levelProgressKey(payload.collectionId, payload.levelId);
+  const compact = {
+    collectionId: payload.collectionId,
+    levelId: payload.levelId,
+    percent: payload.percent,
+    completed: payload.completed,
+    revealedCells: compressGrid(payload.grid)
+  };
+  try {
+    await rcSetProgress(key, compact);
+  } catch(e) {
+    console.error("IndexedDB save error:", e);
+  }
+}
+  
+
+  // =========================
+  // CHARGEMENT LEVELS.JSON
+  // =========================
+  async function loadLevelsConfig() {
+    try {
+      const data = await rcGetConfig();
+      if (!data || !data.collections) { LEVELS_DATA = { collections: [] }; return; }
+      LEVELS_DATA = data;
+    } catch (e) {
+      console.warn('Erreur chargement config:', e);
+      LEVELS_DATA = { collections: [] };
+    }
+  }
+
+// =========================
+// HOME SCREEN
+// =========================
+const btnContinue   = document.getElementById("btn-continue");
+const btnDaily      = document.getElementById("btn-daily");
+const btnCollections = document.getElementById("btn-collections");
+
+// Dans ton nouveau design, ces boutons n'existent plus.
+// On ne branche les listeners QUE si l'élément est présent.
+
+if (btnCollections) {
+  btnCollections.addEventListener("click", () => {
+    buildCollectionsList();
+    showScreen("collections");
+  });
+}
+
+if (btnDaily) {
+  btnDaily.addEventListener("click", () => {
+    const firstCol = LEVELS_DATA.collections[0];
+    if (!firstCol || !firstCol.levels.length) return;
+    const lvl = firstCol.levels[0];
+    saveLastPlayed(firstCol.id, lvl.id);
+    startGame(firstCol.id, lvl.id);
+  });
+}
+
+if (btnContinue) {
+  btnContinue.addEventListener("click", () => {
+    const last = loadLastPlayed();
+    if (!last) return;
+    startGame(last.collectionId, last.levelId);
+  });
+}
+
+
+  // =========================
+  // COLLECTIONS
+  // =========================
+  const collectionsListEl = document.getElementById("collectionsList");
+  document.getElementById("back-from-collections").addEventListener("click", () => {
+    showScreen("home");
+  });
+
+  function buildCollectionsList() {
+    collectionsListEl.innerHTML = "";
+    if (!LEVELS_DATA.collections.length) {
+      const div=document.createElement("div");
+      div.className="smallText";
+      div.textContent="Aucune collection pour l’instant. Publie un niveau depuis le Builder.";
+      collectionsListEl.appendChild(div);
+      return;
+    }
+    LEVELS_DATA.collections.forEach(col => {
+      const card=document.createElement("div");
+      card.className="collectionCard";
+
+      const thumb=document.createElement("div");
+      thumb.className="collectionThumb";
+      thumb.textContent=col.emoji || "🎨";
+
+      const info=document.createElement("div");
+      info.className="collectionInfo";
+
+      const name=document.createElement("div");
+      name.className="collectionName";
+      name.textContent=col.name;
+
+      const totalLevels = (col.levels||[]).length;
+      const completedLevels = (col.levels||[]).filter(l=>isLevelCompleted(l.id)).length;
+      const perc = totalLevels > 0 ? Math.floor((completedLevels / totalLevels) * 100) : 0;
+
+      const meta=document.createElement("div");
+      meta.className="collectionMeta";
+      meta.textContent = `${completedLevels}/${totalLevels} complétées`;
+
+      const progressBar=document.createElement("div");
+      progressBar.className="collectionProgressBar";
+
+      const inner=document.createElement("div");
+      inner.className="collectionProgressInner";
+      inner.style.width = perc + "%";
+
+      progressBar.appendChild(inner);
+
+      info.appendChild(name);
+      info.appendChild(meta);
+      info.appendChild(progressBar);
+
+      const right=document.createElement("div");
+      right.style.fontSize="11px";
+      right.style.color="#777";
+      right.textContent=">";
+
+      card.appendChild(thumb);
+      card.appendChild(info);
+      card.appendChild(right);
+
+      card.addEventListener("click", () => {
+        openCollection(col.id);
+      });
+
+      collectionsListEl.appendChild(card);
+    });
+  }
+
+
+  // =========================
+  // LEVELS SCREEN
+  // =========================
+  const levelsTitleEl=document.getElementById("levelsTitle");
+  const levelsSubtitleEl=document.getElementById("levelsSubtitle");
+  const levelsGridEl=document.getElementById("levelsGrid");
+  let currentCollection = null;
+
+  document.getElementById("back-from-levels").addEventListener("click", () => {
+    showScreen("collections");
+  });
+
+  function openCollection(collectionId) {
+    currentCollection = LEVELS_DATA.collections.find(c=>c.id===collectionId);
+    if (!currentCollection) return;
+    levelsTitleEl.textContent = currentCollection.name;
+    levelsSubtitleEl.textContent = `${(currentCollection.levels||[]).length} images`;
+
+    buildLevelsGrid(currentCollection);
+    showScreen("levels");
+  }
+
+  async function buildLevelsGrid(collection) {
+    levelsGridEl.innerHTML = "";
+    const levels = collection.levels || [];
+    if (!levels.length) {
+      const div=document.createElement("div");
+      div.className="smallText";
+      div.textContent="Aucun niveau dans cette collection.";
+      levelsGridEl.appendChild(div);
+      return;
+    }
+
+    levels.forEach(async (lvl, index) => {
+      const card=document.createElement("div");
+      card.className="levelCard";
+
+      const thumb=document.createElement("div");
+      thumb.className="levelThumb";
+      thumb.textContent=lvl.title || lvl.id;
+
+      const title=document.createElement("div");
+      title.className="levelTitle";
+      title.textContent=`#${index+1}`;
+
+      const status=document.createElement("div");
+      status.className="levelStatus";
+
+      const progressData = await loadLevelProgressData(collection.id, lvl.id);
+      let percent = 0;
+      if (progressData && typeof progressData.percent === "number") {
+        percent = progressData.percent;
+      } else if (isLevelCompleted(lvl.id)) {
+        percent = 100;
+      }
+
+      const completed = isLevelCompleted(lvl.id) || (percent >= 100);
+
+      if (completed) {
+        status.textContent = `Terminé ✓ (${percent || 100}%)`;
+        thumb.textContent = "";
+        const canvas = document.createElement("canvas");
+canvas.dataset.levelThumb = lvl.id;  // 👈 IMPORTANT pour identifier la miniature
+        canvas.width = 70;
+        canvas.height = 70;
+        canvas.className = "levelThumbCanvas";
+        thumb.appendChild(canvas);
+        await drawLevelThumbnail(canvas, collection.id, lvl.id);
+      } else {
+        if (percent > 0) {
+          status.textContent = `${percent}% complété`;
+        } else {
+          status.textContent = "Non commencé";
+        }
+      }
+
+      card.appendChild(thumb);
+      card.appendChild(title);
+      card.appendChild(status);
+
+      card.addEventListener("click", () => {
+        startGame(collection.id, lvl.id);
+      });
+
+      levelsGridEl.appendChild(card);
+    });
+  }
+async function drawLevelThumbnail(canvas, collectionId, levelId) {
+  try {
+    const ctx = canvas.getContext("2d");
+    canvas.width = canvas.width;
+
+    const levelData = await rcGetLevel(levelId);
+    if (!levelData) { ctx.fillStyle="#eee"; ctx.fillRect(0,0,canvas.width,canvas.height); return; }
+    const { palette, grid: baseGrid } = levelData;
+
+    // Essayer d afficher l image directement
+    const imageBase64 = await rcGetImage(levelId);
+    if (imageBase64) {
+      const img = new Image();
+      img.onload = () => { ctx.drawImage(img, 0, 0, canvas.width, canvas.height); };
+      img.src = imageBase64;
+    }
+
+    const saved = await loadLevelProgressData(collectionId, levelId);
+
+    const gridW = baseGrid[0].length;
+    const gridH = baseGrid.length;
+
+    const cellW = canvas.width / gridW;
+    const cellH = canvas.height / gridH;
+
+    // =========================
+    // 1️⃣ IMAGE COMPLETE (base)
+    // =========================
+    for (let y = 0; y < gridH; y++) {
+      for (let x = 0; x < gridW; x++) {
+        const colorIndex = baseGrid[y][x];
+        const col = palette[colorIndex];
+
+        ctx.fillStyle = `rgb(${col.r}, ${col.g}, ${col.b})`;
+        ctx.fillRect(x * cellW, y * cellH, cellW, cellH);
+      }
+    }
+
+    // =========================
+    // 2️⃣ BLUR GLOBAL (mystère)
+    // =========================
+    let percent = saved?.percent || 0;
+    let progress = percent / 100;
+
+    let blurAmount = (1 - progress) * 6; // 6px → 0px
+
+    ctx.filter = `blur(${blurAmount}px)`;
+    ctx.drawImage(canvas, 0, 0);
+    ctx.filter = "none";
+
+    // =========================
+    // 3️⃣ ZONES RÉVÉLÉES NETTES
+    // =========================
+    if (saved && saved.revealedCells) {
+      for (const str of saved.revealedCells) {
+        const [x, y] = str.split(',').map(Number);
+
+        const colorIndex = baseGrid[y][x];
+        const col = palette[colorIndex];
+
+        ctx.fillStyle = `rgb(${col.r}, ${col.g}, ${col.b})`;
+        ctx.fillRect(x * cellW, y * cellH, cellW, cellH);
+      }
+    }
+
+    // =========================
+    // 4️⃣ SI TERMINÉ → IMAGE FULL
+    // =========================
+    if (saved?.completed) {
+      ctx.filter = "none";
+
+      for (let y = 0; y < gridH; y++) {
+        for (let x = 0; x < gridW; x++) {
+          const colorIndex = baseGrid[y][x];
+          const col = palette[colorIndex];
+
+          ctx.fillStyle = `rgb(${col.r}, ${col.g}, ${col.b})`;
+          ctx.fillRect(x * cellW, y * cellH, cellW, cellH);
+        }
+      }
+    }
+
+  } catch (e) {
+    console.warn("Impossible de dessiner la miniature", e);
+  }
+}
+  
+  // =========================
+  // GAME + SCRATCH
+  // =========================
+  let lastScratchX = null;
+  let lastScratchY = null;
+  let lastScratchTime = null;
+  let needsSave = false;
+
+  const backFromGame = document.getElementById("back-from-game");
+  const gameTitleEl = document.getElementById("gameTitle");
+  const gameSubtitleEl = document.getElementById("gameSubtitle");
+  const gameProgressPercentEl = document.getElementById("gameProgressPercent");
+  const gameRemainingEl = document.getElementById("gameRemaining");
+  const gameCanvas = document.getElementById("gameCanvas");
+  const gameCanvasScratch = document.getElementById("gameCanvasScratch");
+  const gameCanvasWrap = document.getElementById("gameCanvasWrap");
+  const ctxImg = gameCanvas.getContext("2d");
+  const ctxScratch = gameCanvasScratch.getContext("2d");
+  // palette row remplacé par colorBlocksRow
+  // brush slider supprimé
+
+  let currentGame = {
+    collectionId: null,
+    levelId: null,
+    grid: [],
+    baseGrid: [],
+    palette: [],
+    remainingPerColor: [],
+    gridW: 0,
+    gridH: 0,
+    totalCells: 0,
+    revealed: 0,
+    brushSize: 3,
+    activeColorIndex: null,
+    completed: false
+  };
+
+  // ===== ZOOM + PAN STATE =====
+  let zoom = 1;
+  let panX = 0;
+  let panY = 0;
+  const MIN_ZOOM = 1;
+  const MAX_ZOOM = 3;
+
+  function applyZoom() {
+  if (!gameCanvasWrap) return;
+
+  const isMobile = window.innerWidth < 768;
+
+  if (!isMobile) {
+    gameCanvasWrap.style.transform = "none";
+    return;
+  }
+
+  gameCanvasWrap.style.transform =
+    `translate(${panX}px, ${panY}px) scale(${zoom})`;
+}
+
+  function setZoom(newZoom) {
+    zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, newZoom));
+    applyZoom();
+  }
+
+  // pinch mobile (Pointer Events)
+  let isPinching = false;
+  const activePointers = new Map(); // pointerId -> {x,y}
+  let pinchStartZoom = 1;
+  let pinchStartDist = 0;
+
+  function distance(p1, p2) {
+    const dx = p2.x - p1.x;
+    const dy = p2.y - p1.y;
+    return Math.hypot(dx, dy);
+  }
+
+  // pan à un doigt
+  let isPanning = false;
+  let lastPanX = 0;
+  let lastPanY = 0;
+
+   backFromGame.addEventListener("click", () => {
+saveCurrentProgress();   // 🔥 FORCE LA SAUVEGARDE
+
+// Mise à jour de la miniature avant retour
+const thumbCanvas = document.querySelector(`canvas[data-level-thumb="${currentGame.levelId}"]`);
+if (thumbCanvas) {
+    drawLevelThumbnail(thumbCanvas, currentGame.collectionId, currentGame.levelId);
+}
+
+  document.getElementById("screen-game").classList.remove("fullscreen");
+  lockBodyScrollForGame(false);
+
+  // Remettre la navbar
+  const bottomNavBack = document.getElementById('bottomNav');
+  if (bottomNavBack) bottomNavBack.style.display = 'flex';
+
+  // Retour direct au menu principal (catalogues)
+  showScreen("home");
+});
+
+
+  // brush slider supprimé (remplacé par l'aspiration)
+
+  async function startGame(collectionId, levelId) {
+const isMobile = window.innerWidth < 768;
+
+if (isMobile) {
+  document.getElementById("screen-game").classList.add("fullscreen");
+} else {
+  document.getElementById("screen-game").classList.remove("fullscreen");
+}
+  lockBodyScrollForGame(true);
+
+// Cacher la navbar pendant le jeu
+const bottomNav = document.getElementById('bottomNav');
+if (bottomNav) bottomNav.style.display = 'none';
+
+zoom = 1;
+panX = 0;
+panY = 0;
+applyZoom();
+
+
+
+    const col = LEVELS_DATA.collections.find(c=>c.id===collectionId);
+    if (!col) {
+      alert("Collection introuvable.");
+      return;
+    }
+    const lvl = (col.levels||[]).find(l=>l.id===levelId);
+    if (!lvl) {
+      alert("Niveau introuvable dans cette collection.");
+      return;
+    }
+
+    currentGame.collectionId = collectionId;
+    currentGame.levelId = levelId;
+    currentGame.completed = false;
+
+    saveLastPlayed(collectionId, levelId);
+    refreshContinueButton();
+
+    // Reset de la progression — on repart toujours de zéro
+    const resetKey = levelProgressKey(collectionId, levelId);
+    try { await rcDeleteProgress(resetKey); } catch(e) {}
+
+    // Reset visuel immédiat du canvas scratch
+    try {
+      const sc = document.getElementById('gameCanvasScratch');
+      if (sc) {
+        const ctx = sc.getContext('2d');
+        ctx.clearRect(0, 0, sc.width, sc.height);
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, sc.width, sc.height);
+      }
+    } catch(e) {}
+
+    gameTitleEl.textContent = lvl.title || lvl.id;
+    gameSubtitleEl.textContent = col.name;
+
+    // reset du zoom et pan à chaque nouveau niveau
+    zoom = 1;
+    panX = 0;
+    panY = 0;
+    applyZoom();
+
+    await loadLevelDataFromServer(collectionId, levelId);
+    showScreen("game");
+  }
+
+  function computeCountsFromGrid(grid, paletteLength) {
+    const counts = new Array(paletteLength).fill(0); 
+    let revealed = 0;
+    const gridH = grid.length;
+    const gridW = grid[0].length;
+    for (let y=0;y<gridH;y++){
+      for(let x=0;x<gridW;x++){
+        const v = grid[y][x];
+        if (v === -1) {
+          revealed++;
+        } else if (v>=0 && v<paletteLength) {
+          counts[v]++;
+        }
+      }
+    }
+    return {counts,revealed};
+  }
+
+function setupCanvasForGrid() {
+  const maxSize = 720;
+
+  // 🔥 sécurité anti crash
+  if (!currentGame.gridW || !currentGame.gridH) {
+    console.warn("Grid invalide → fallback carré");
+
+    gameCanvas.width = maxSize;
+    gameCanvas.height = maxSize;
+    gameCanvasScratch.width = maxSize;
+    gameCanvasScratch.height = maxSize;
+
+    if (gameCanvasWrap) {
+      gameCanvasWrap.style.aspectRatio = "1 / 1";
+    }
+    return;
+  }
+
+  const ratio = currentGame.gridW / currentGame.gridH;
+
+  let canvasW, canvasH;
+
+  if (ratio >= 1) {
+    // paysage
+    canvasW = maxSize;
+    canvasH = maxSize / ratio;
+  } else {
+    // portrait
+    canvasH = maxSize;
+    canvasW = maxSize * ratio;
+  }
+
+  gameCanvas.width = canvasW;
+  gameCanvas.height = canvasH;
+  gameCanvasScratch.width = canvasW;
+  gameCanvasScratch.height = canvasH;
+
+  if (gameCanvasWrap) {
+    gameCanvasWrap.style.aspectRatio = `${canvasW} / ${canvasH}`;
+  }
+}
+
+  async function loadLevelDataFromServer(collectionId, levelId) {
+    try {
+      // Charger depuis IndexedDB
+      const levelData = await rcGetLevel(levelId);
+      if (!levelData) throw new Error('Niveau introuvable dans IndexedDB: ' + levelId);
+
+      const { grid, palette, gameGrid, meta } = levelData;
+
+      // Image depuis IndexedDB
+      const imageBase64 = await rcGetImage(levelId);
+
+      currentGame.gameGrid = gameGrid || null;
+      currentGame.gridH = grid.length;
+      currentGame.gridW = grid[0].length;
+      currentGame.baseGrid = grid;
+      currentGame.palette = palette;
+      currentGame.totalCells = currentGame.gridW * currentGame.gridH;
+
+      // Image
+      if (imageBase64) {
+        const img = new Image();
+        img.onload = () => {
+          const ratio = Math.min(gameCanvas.width / img.width, gameCanvas.height / img.height);
+          const w = img.width * ratio, h = img.height * ratio;
+          const x = (gameCanvas.width - w) / 2, y = (gameCanvas.height - h) / 2;
+          const ctxImg = gameCanvas.getContext('2d');
+          ctxImg.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
+          ctxImg.drawImage(img, x, y, w, h);
+        };
+        img.src = imageBase64;
+      }
+
+      const saved = await loadLevelProgressData(collectionId, levelId);
+
+// Validation hyper safe : aucune erreur n'est levée,
+// si c'est pourri → on considère que c'est invalide.
+
+let isValidSaved = false;
+
+// Reconstruire la grille décompressée si sauvegarde
+let savedGrid = null;
+if (saved && Array.isArray(saved.revealedCells)) {
+  savedGrid = decompressGrid(saved.revealedCells, grid);
+}
+
+if (savedGrid) {
+  isValidSaved =
+    Array.isArray(savedGrid) &&
+    savedGrid.length === grid.length &&
+    savedGrid.every(row => Array.isArray(row) && row.length === grid[0].length);
+}
+
+if (isValidSaved) {
+
+  currentGame.grid = savedGrid;
+
+  const cc = computeCountsFromGrid(savedGrid, palette.length);
+ // 🔥 TOTAL depuis la grille de base (IMPORTANT)
+const totalCounts = computeCountsFromGrid(currentGame.baseGrid, palette.length);
+currentGame.totalPerColor = totalCounts.counts;
+
+// 🔥 REMAINING depuis la progression actuelle
+const currentCounts = computeCountsFromGrid(currentGame.grid, palette.length);
+currentGame.remainingPerColor = currentCounts.counts;
+
+  currentGame.revealed = cc.revealed;
+  currentGame.completed = (cc.revealed >= currentGame.totalCells);
+
+} else {
+
+  currentGame.grid = grid.map(row => row.slice());
+
+  const cc = computeCountsFromGrid(currentGame.grid, palette.length);
+  // 🔥 TOTAL depuis la grille de base (IMPORTANT)
+const totalCounts = computeCountsFromGrid(currentGame.baseGrid, palette.length);
+currentGame.totalPerColor = totalCounts.counts;
+
+// 🔥 REMAINING depuis la progression actuelle
+const currentCounts = computeCountsFromGrid(currentGame.grid, palette.length);
+currentGame.remainingPerColor = currentCounts.counts;
+
+  currentGame.revealed = cc.revealed;
+  currentGame.completed = (cc.revealed >= currentGame.totalCells);
+}
+
+
+
+      // Ajuster la taille du canvas selon les dimensions réelles de la grille
+      setupCanvasForGrid();
+      // syncParticleCanvas supprimé (plus de particules)
+
+      // Dessiner l'image finale sous la couche à gratter (sans interstices)
+      ctxImg.clearRect(0,0,gameCanvas.width,gameCanvas.height);
+
+      const cellW = gameCanvas.width  / currentGame.gridW;
+      const cellH = gameCanvas.height / currentGame.gridH;
+
+      for (let y = 0; y < currentGame.gridH; y++) {
+        for (let x = 0; x < currentGame.gridW; x++) {
+          const idxCell = currentGame.baseGrid[y][x];
+          const col = currentGame.palette[idxCell];
+          if (!col) continue;
+
+          const px = Math.floor(x * cellW);
+          const py = Math.floor(y * cellH);
+          const pw = Math.floor((x+1) * cellW) - px;
+          const ph = Math.floor((y+1) * cellH) - py;
+
+          ctxImg.fillStyle = `rgb(${col.r},${col.g},${col.b})`;
+          ctxImg.fillRect(px, py, pw, ph);
+        }
+      }
+
+      // Couche scratch uniforme au-dessus
+      ctxScratch.clearRect(0,0,gameCanvas.width,gameCanvas.height);
+      ctxScratch.globalCompositeOperation = "source-over";
+      ctxScratch.globalAlpha = 1;
+     ctxScratch.globalCompositeOperation = "source-over";
+ctxScratch.globalAlpha = 1;
+
+// ✅ BLANC OPAQUE TOTAL
+ctxScratch.fillStyle = "#ffffff";
+ctxScratch.fillRect(0, 0, gameCanvas.width, gameCanvas.height);
+      ctxScratch.globalAlpha = 1;
+      ctxScratch.globalCompositeOperation = "source-over";
+
+      // Ré-appliquer le grattage existant si sauvegarde
+      if (currentGame.grid) {
+        const minCell = Math.min(cellW, cellH);
+        reapplyScratchFromGrid(currentGame.grid, minCell);
+      }
+      // Si le niveau est entièrement terminé → retirer totalement la couche scratch
+      if (currentGame.completed) {
+        ctxScratch.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
+      }
+
+      buildGamePalette();
+      updateGameUI();
+      refreshPaletteCounters();
+      needsSave = false;
+
+    } catch (e) {
+      console.error(e);
+      alert("Impossible de charger ce niveau.\nVérifie qu'il a été publié correctement.");
+    }
+  }
+
+  function buildGamePalette() {
+    buildColorBlocks();
+    initConveyor();
+  }
+
+  // ==========================================
+  // COLOR BLOCKS — remplacé par Block Jam
+  // ==========================================
+  function buildColorBlocks() {} // stub — géré par bjInit()
+  function refreshPaletteCounters() {} // stub — géré par Block Jam
+
+  function updateGameUI() {
+  const total = currentGame.totalCells;
+  const revealed = currentGame.revealed;
+
+  const percent = total > 0 ? Math.floor((revealed / total) * 100) : 0;
+
+  document.getElementById("gameProgressPercent").textContent = percent + "%";
+  document.getElementById("progressFill").style.width = percent + "%";
+
+  // cellules restantes
+  const remainingCells = total - revealed;
+  
+
+  // 🔥 couleurs restantes
+  const remainingColors = currentGame.remainingPerColor.filter(v => v > 0).length;
+const totalColors = currentGame.totalPerColor.filter(v => v > 0).length;
+
+document.getElementById("colorsRemaining").textContent = remainingColors;
+document.getElementById("colorsTotal").textContent = totalColors;
+}
+
+  // =========================
+  // SCRATCH (Pointer Events + Pinch + Pan)
+  let longPressTimer = null;
+  let scratchFromPan = false;
+  let isPointerDown = false;
+  let lastAutoSaveTime = 0;
+
+  gameCanvasScratch.style.touchAction = "none";
+
+  gameCanvasScratch.addEventListener("pointerdown", (e)=>{
+    // Gestion des pointeurs tactiles pour pinch/pan
+    if (e.pointerType === "touch") {
+      activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+      if (activePointers.size === 2) {
+        const pts = Array.from(activePointers.values());
+        pinchStartDist = distance(pts[0], pts[1]);
+        pinchStartZoom = zoom;
+        isPinching = true;
+      } else if (zoom > 1 && !isPinching) {
+        isPanning = true;
+        lastPanX = e.clientX;
+        lastPanY = e.clientY;
+        e.preventDefault();
+        return;
+      }
+    }
+    if (isPinching) { e.preventDefault(); return; }
+    // Plus de scratch manuel : on ne fait rien ici
+    e.preventDefault();
+  });
+
+  gameCanvasScratch.addEventListener("pointermove", (e)=>{
+    // mise à jour des positions pour le pinch
+    if (e.pointerType === "touch" && activePointers.has(e.pointerId)) {
+      activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    }
+
+    // PINCH à 2 doigts (mobile)
+    if (isPinching && activePointers.size === 2) {
+      const pts = Array.from(activePointers.values());
+      const distNow = distance(pts[0], pts[1]);
+      if (pinchStartDist > 0) {
+        const scale = distNow / pinchStartDist;
+        setZoom(pinchStartZoom * scale);
+      }
+      e.preventDefault();
+      return;
+    }
+
+    // PAN à 1 doigt quand zoom > 1
+    if (zoom > 1 && isPanning && !isPinching && e.pointerType === "touch") {
+      const dx = e.clientX - lastPanX;
+      const dy = e.clientY - lastPanY;
+      panX += dx;
+      panY += dy;
+      applyZoom();
+      lastPanX = e.clientX;
+      lastPanY = e.clientY;
+      e.preventDefault();
+      return;
+    }
+    // Plus de scratch manuel
+  });
+
+  window.addEventListener("pointerup", (e)=>{
+    if (e.pointerType === "touch" && activePointers.has(e.pointerId)) {
+      activePointers.delete(e.pointerId);
+      if (activePointers.size < 2) {
+        isPinching = false;
+        pinchStartDist = 0;
+      }
+      if (activePointers.size === 0) {
+        isPanning = false;
+      }
+    }
+
+    isPointerDown = false;
+    if (longPressTimer){clearTimeout(longPressTimer);longPressTimer=null;}
+    scratchFromPan=false;
+    if (longPressTimer){clearTimeout(longPressTimer);longPressTimer=null;}
+    scratchFromPan=false;
+    if (needsSave) {
+      saveCurrentProgress();
+      needsSave = false;
+    }
+  });
+
+  window.addEventListener("pointercancel", (e)=>{
+    if (e.pointerType === "touch" && activePointers.has(e.pointerId)) {
+      activePointers.delete(e.pointerId);
+      if (activePointers.size < 2) {
+        isPinching = false;
+        pinchStartDist = 0;
+      }
+      if (activePointers.size === 0) {
+        isPanning = false;
+      }
+    }
+
+    isPointerDown = false;
+    if (longPressTimer){clearTimeout(longPressTimer);longPressTimer=null;}
+    scratchFromPan=false;
+    if (longPressTimer){clearTimeout(longPressTimer);longPressTimer=null;}
+    scratchFromPan=false;
+    if (needsSave) {
+      saveCurrentProgress();
+      needsSave = false;
+    }
+  });
+
+  // Pinch trackpad Mac via gesture events
+  gameCanvasWrap.addEventListener("gesturestart", (e) => {
+    pinchStartZoom = zoom;
+    e.preventDefault();
+  });
+
+  gameCanvasWrap.addEventListener("gesturechange", (e) => {
+    setZoom(pinchStartZoom * e.scale);
+    e.preventDefault();
+  });
+
+  gameCanvasWrap.addEventListener("gestureend", (e) => {
+    e.preventDefault();
+  });
+
+// =========================
+// RESET ZOOM + PAN SI TOUCHER HORS DE L’IMAGE
+// =========================
+document.addEventListener("pointerdown", (e) => {
+  // Si on touche dans l’image → ne rien faire
+  if (gameCanvasWrap.contains(e.target)) return;
+
+  // Sinon on remet tout à zéro
+  zoom = 1;
+  panX = 0;
+  panY = 0;
+  applyZoom();
+});
+
+  function scratchAtEvent(clientX,clientY) {
+    if (currentGame.activeColorIndex==null) return;
+    const rect = gameCanvasScratch.getBoundingClientRect();
+    const px = clientX - rect.left;
+    const py = clientY - rect.top;
+
+    const scaleX = gameCanvas.width / rect.width;
+    const scaleY = gameCanvas.height / rect.height;
+    const cx = px * scaleX;
+    const cy = py * scaleY;
+
+    const now = performance.now();
+    let vx = 0, vy = 0;
+    if (lastScratchX !== null) {
+      const dt = now - lastScratchTime;
+      if (dt > 0) {
+        vx = (cx - lastScratchX) / dt;
+        vy = (cy - lastScratchY) / dt;
+      }
+    }
+    lastScratchX = cx;
+    lastScratchY = cy;
+    lastScratchTime = now;
+
+    scratchAtGrid(cx, cy, vx, vy);
+  }
+
+  function eraseOnScratch(x, y, r, vx, vy) {
+    const speed = Math.sqrt(vx*vx + vy*vy);
+    const jitter = Math.min(speed * 0.15, 1.2);
+    const jx = (Math.random() - 0.5) * jitter;
+    const jy = (Math.random() - 0.5) * jitter;
+
+    ctxScratch.save();
+    ctxScratch.globalCompositeOperation = "destination-out";
+    ctxScratch.beginPath();
+    ctxScratch.arc(x + jx, y + jy, r, 0, Math.PI * 2);
+    ctxScratch.fill();
+    ctxScratch.restore();
+  }
+
+  function scratchAtGrid(cx, cy, vx, vy) {
+    const gridW = currentGame.gridW;
+    const gridH = currentGame.gridH;
+    const active = currentGame.activeColorIndex;
+    const brush = currentGame.brushSize;
+
+    if (active == null || !gridW || !gridH) return;
+
+    const cellW = gameCanvas.width / gridW;
+    const cellH = gameCanvas.height / gridH;
+
+    const gx = Math.floor(cx / cellW);
+    const gy = Math.floor(cy / cellH);
+
+    let anyChange = false;
+
+    for (let dy=-brush; dy<=brush; dy++){
+      for (let dx=-brush; dx<=brush; dx++){
+        const X = gx+dx;
+        const Y = gy+dy;
+        if (X<0||Y<0||X>=gridW||Y>=gridH) continue;
+
+        const val = currentGame.grid[Y][X];
+        if (val !== active) continue;
+
+        if (currentGame.grid[Y][X] !== -1) {
+
+  currentGame.grid[Y][X] = -1;
+  currentGame.revealed++;
+  anyChange = true;
+
+  if (currentGame.remainingPerColor[active] > 0) {
+
+    currentGame.remainingPerColor[active]--;
+
+    const remaining = currentGame.remainingPerColor[active];
+    const total = currentGame.totalPerColor[active];
+
+    const percentLeft = (remaining / total) * 100;
+
+    // ✅ AUTO COMPLETE COULEUR À 5%
+   if (percentLeft <= 5 && remaining > 0) {
+  autoCompleteColor(active);
+}
+    // ✅ FIN NORMALE
+    if (remaining === 0) {
+      handleColorDepleted(active);
+    }
+  }
+}
+
+// ✅ IMPORTANT : TOUJOURS EN DEHORS DU IF
+const centerX = X * cellW + cellW/2;
+const centerY = Y * cellH + cellH/2;
+const radius = Math.min(cellW, cellH) * 0.75;
+eraseOnScratch(centerX, centerY, radius, vx, vy);
+      }
+    }
+
+    if (anyChange) {
+      playScratchSound();
+      needsSave = true;
+    }
+
+    updateGameUI();
+    refreshPaletteCounters();
+    checkCompletion();
+  }
+
+  function reapplyScratchFromGrid(gridData, cellSize) {
+    ctxScratch.save();
+    ctxScratch.globalCompositeOperation = "destination-out";
+    for (let y = 0; y < currentGame.gridH; y++) {
+      for (let x = 0; x < currentGame.gridW; x++) {
+        if (gridData[y][x] === -1) {
+          const centerX = x * cellSize + cellSize / 2;
+          const centerY = y * cellSize + cellSize / 2;
+          ctxScratch.beginPath();
+          ctxScratch.arc(centerX, centerY, cellSize * 0.75, 0, Math.PI * 2);
+          ctxScratch.fill();
+        }
+      }
+    }
+    ctxScratch.restore();
+  }
+
+  function saveCurrentProgress() {
+    if (!currentGame.collectionId || !currentGame.levelId) return;
+    const total = currentGame.totalCells || 0;
+    const revealed = currentGame.revealed || 0;
+    const percent = total > 0 ? Math.floor((revealed / total) * 100) : 0;
+    const payload = {
+      collectionId: currentGame.collectionId,
+      levelId: currentGame.levelId,
+      revealed,
+      total,
+      percent,
+      completed: currentGame.completed,
+      grid: currentGame.grid
+    };
+    saveLevelProgressData(payload);
+  }
+
+  function checkCompletion() {
+  if (currentGame.completed) return;
+
+  const total = currentGame.totalCells;
+  const revealed = currentGame.revealed;
+
+  const percent = (revealed / total) * 100;
+  const remainingPercent = 100 - percent;
+
+ 
+  if (revealed >= total) {
+    finishLevel();
+  }
+}
+
+function autoCompleteLevel() {
+  const grid = currentGame.grid;
+
+  for (let y = 0; y < currentGame.gridH; y++) {
+    for (let x = 0; x < currentGame.gridW; x++) {
+      if (grid[y][x] !== -1) {
+        grid[y][x] = -1;
+
+        const cellW = gameCanvas.width / currentGame.gridW;
+        const cellH = gameCanvas.height / currentGame.gridH;
+
+        const centerX = x * cellW + cellW / 2;
+        const centerY = y * cellH + cellH / 2;
+
+        ctxScratch.globalCompositeOperation = "destination-out";
+        ctxScratch.beginPath();
+        ctxScratch.arc(centerX, centerY, Math.min(cellW, cellH), 0, Math.PI * 2);
+        ctxScratch.fill();
+      }
+    }
+  }
+
+  currentGame.revealed = currentGame.totalCells;
+
+  finishLevel();
+}
+
+function autoCompleteColor(colorIndex) {
+  const grid = currentGame.grid;
+
+  const cellW = gameCanvas.width / currentGame.gridW;
+  const cellH = gameCanvas.height / currentGame.gridH;
+
+  for (let y = 0; y < currentGame.gridH; y++) {
+    for (let x = 0; x < currentGame.gridW; x++) {
+
+      if (grid[y][x] === colorIndex) {
+        grid[y][x] = -1;
+
+        const centerX = x * cellW + cellW / 2;
+        const centerY = y * cellH + cellH / 2;
+
+        ctxScratch.globalCompositeOperation = "destination-out";
+        ctxScratch.beginPath();
+        ctxScratch.arc(centerX, centerY, Math.min(cellW, cellH), 0, Math.PI * 2);
+        ctxScratch.fill();
+
+        currentGame.revealed++;
+      }
+    }
+  }
+
+  currentGame.remainingPerColor[colorIndex] = 0;
+  handleColorDepleted(colorIndex);
+}
+// =========================
+// BLOCK JAM MECHANIC
+// =========================
+
+const MATCH_COUNT = 3;
+const WAIT_MAX = 7;
+
+let bjGrid = [];       // tableau plat [colorIndex ou -1]
+let bjCols = 5;
+let bjRows = 5;
+let bjWait = [];       // zone d'attente
+let bjGameOver = false;
+let bjAnimating = false; // bloque les clics pendant une animation
+
+// Groupes de couleurs similaires : bjColorGroup[paletteIdx] = groupIdx
+let bjColorGroups = [];
+let bjGroupColors = []; // couleur moyenne de chaque groupe [r,g,b]
+
+function bjBuildColorGroups() {
+  const palette = currentGame.palette;
+  bjColorGroups = new Array(palette.length).fill(-1);
+  bjGroupColors = [];
+  const TOLERANCE = 30; // distance max pour regrouper
+
+  palette.forEach((c, i) => {
+    if ((currentGame.remainingPerColor[i]||0) <= 0) return;
+    // cherche un groupe existant proche
+    let found = -1;
+    for (let g = 0; g < bjGroupColors.length; g++) {
+      const [gr, gg, gb] = bjGroupColors[g];
+      const dist = Math.abs(c.r-gr) + Math.abs(c.g-gg) + Math.abs(c.b-gb);
+      if (dist < TOLERANCE) { found = g; break; }
+    }
+    if (found === -1) {
+      found = bjGroupColors.length;
+      bjGroupColors.push([c.r, c.g, c.b]);
+    }
+    bjColorGroups[i] = found;
+  });
+}
+
+function bjColorFromGroup(groupIdx) {
+  const [r,g,b] = bjGroupColors[groupIdx] || [200,200,200];
+  return `rgb(${r},${g},${b})`;
+}
+
+function bjColorFromPalette(i) {
+  // Toujours utiliser directement la palette via bjColorGroups
+  const c = currentGame.palette[i];
+  return c ? `rgb(${c.r},${c.g},${c.b})` : '#ccc';
+}
+
+function bjGetGroup(ci) {
+  // En mode gameGrid : identité (paletteIdx = groupIdx)
+  // En mode génération : utiliser bjColorGroups
+  if (currentGame.gameGrid) return ci;
+  return bjColorGroups[ci] >= 0 ? bjColorGroups[ci] : ci;
+}
+
+const ROCK = -2; // gardé pour compatibilité mais plus utilisé
+
+function bjPlaceRocks() {} // désactivé — plus de rochers
+
+function bjBuildGrid() {
+  bjBuildColorGroups();
+
+  const availableGroups = [...new Set(
+    currentGame.palette
+      .map((_,idx) => bjColorGroups[idx])
+      .filter((g, idx) => g >= 0 && (currentGame.remainingPerColor[idx]||0) > 0)
+  )];
+
+  if (!availableGroups.length) return;
+
+  // Pool = exactement 3 pastilles par groupe
+  const pool = [];
+  availableGroups.forEach(g => pool.push(g, g, g));
+
+  // Taille de grille exacte sans cases vides
+  const total = pool.length; // toujours multiple de 3
+  bjCols = Math.min(6, Math.ceil(Math.sqrt(total)));
+  // Ajuster les colonnes pour que total soit divisible
+  while (total % bjCols !== 0 && bjCols > 2) bjCols--;
+  bjRows = total / bjCols;
+
+  // Mélanger — garantir qu'au moins une pastille de chaque groupe est en row 0
+  const shuffledGroups = [...availableGroups];
+  for (let i = shuffledGroups.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffledGroups[i], shuffledGroups[j]] = [shuffledGroups[j], shuffledGroups[i]];
+  }
+
+  bjGrid = new Array(bjCols * bjRows).fill(-1);
+
+  // Row 0 : une pastille de chaque groupe (jusqu'à bjCols groupes)
+  const row0Groups = shuffledGroups.slice(0, bjCols);
+  row0Groups.forEach((g, col) => {
+    const idx = currentGame.palette.findIndex((_,pi) =>
+      bjColorGroups[pi] === g && (currentGame.remainingPerColor[pi]||0) > 0
+    );
+    bjGrid[col] = idx >= 0 ? idx : -1;
+  });
+
+  // Reste : les 2 pastilles restantes de chaque groupe
+  const remaining = [];
+  pool.forEach(g => {
+    const placedCount = bjGrid.filter(ci => ci >= 0 && (bjColorGroups[ci] >= 0 ? bjColorGroups[ci] : ci) === g).length;
+    const toPlace = 3 - placedCount;
+    for (let i = 0; i < toPlace; i++) {
+      const idx = currentGame.palette.findIndex((_,pi) =>
+        bjColorGroups[pi] === g && (currentGame.remainingPerColor[pi]||0) > 0
+      );
+      remaining.push(idx >= 0 ? idx : -1);
+    }
+  });
+
+  // Mélanger le reste
+  for (let i = remaining.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [remaining[i], remaining[j]] = [remaining[j], remaining[i]];
+  }
+
+  // Remplir les cases vides (row 1+)
+  let ri = 0;
+  for (let i = bjCols; i < bjGrid.length; i++) {
+    if (bjGrid[i] === -1 && ri < remaining.length) {
+      bjGrid[i] = remaining[ri++];
+    }
+  }
+}
+
+function bjIsAccessible(idx) {
+  return bjFindPath(idx) !== null;
+}
+
+// Retourne le chemin (liste d'indices) de la pastille jusqu'à la sortie (row -1 = dehors)
+// ou null si bloquée
+function bjFindPath(idx) {
+  const startRow = Math.floor(idx / bjCols);
+  const startCol = idx % bjCols;
+  const dirs = [[-1,0],[1,0],[0,-1],[0,1]];
+
+  // BFS avec reconstruction du chemin
+  const visited = new Map(); // ni → parent ni (ou -1 pour la source)
+  const queue = [];
+
+  // On part des voisins vides immédiats de la pastille
+  for (const [dr, dc] of dirs) {
+    const r = startRow + dr;
+    const c = startCol + dc;
+    if (r < 0) {
+      // Sortie directe par le haut — chemin = [idx]
+      return [idx];
+    }
+    if (r >= bjRows || c < 0 || c >= bjCols) continue;
+    const ni = r * bjCols + c;
+    if (bjGrid[ni] === -1 && !visited.has(ni)) {
+      visited.set(ni, idx); // parent = pastille de départ
+      queue.push([r, c, ni]);
+    }
+  }
+
+  while (queue.length > 0) {
+    const [r, c, cur] = queue.shift();
+    // Si on est en row 0, on peut sortir par le haut
+    if (r === 0) {
+      // Reconstruire le chemin à rebours
+      const path = [];
+      let node = cur;
+      while (node !== idx) {
+        path.unshift(node);
+        node = visited.get(node);
+      }
+      path.unshift(idx);
+      return path;
+    }
+    for (const [dr, dc] of dirs) {
+      const nr = r + dr;
+      const nc = c + dc;
+      if (nr < 0) {
+        // Sortie par le haut depuis r=0 non atteint encore
+        const path = [];
+        let node = cur;
+        while (node !== idx) {
+          path.unshift(node);
+          node = visited.get(node);
+        }
+        path.unshift(idx);
+        return path;
+      }
+      if (nr >= bjRows || nc < 0 || nc >= bjCols) continue;
+      const ni = nr * bjCols + nc;
+      if (bjGrid[ni] === -1 && !visited.has(ni)) {
+        visited.set(ni, cur);
+        queue.push([nr, nc, ni]);
+      }
+    }
+  }
+
+  return null; // bloquée
+}
+
+
+function bjGetTopOfColumn(col) { return -1; } // plus utilisé
+
+function bjCellSize() {
+  // Mesure l'espace réellement disponible dans gameBottomZone
+  const bottomZone = document.getElementById('gameBottomZone');
+  const waitZone = document.getElementById('waitZoneRow');
+  const msgEl = document.getElementById('bjMsg');
+
+  // Hauteur disponible pour la grille seule
+  let availH = 0;
+  if (bottomZone) {
+    const zoneH = bottomZone.getBoundingClientRect().height;
+    const waitH = waitZone ? waitZone.getBoundingClientRect().height || 54 : 54;
+    const msgH = msgEl ? 20 : 0;
+    const gaps = 8 * 3; // gap entre éléments
+    availH = zoneH - waitH - msgH - gaps - 16; // 16px padding
+  } else {
+    // Fallback : estimation
+    availH = window.innerHeight * 0.38;
+  }
+
+  // Largeur disponible
+  const availW = Math.min(window.innerWidth, 500) - 32;
+
+  const sizeByW = Math.floor(availW / bjCols) - 6;
+  const sizeByH = bjRows > 0 ? Math.floor(availH / bjRows) - 4 : 64;
+
+  const maxSize = 68;
+  const minSize = 32;
+  return Math.max(minSize, Math.min(sizeByW, sizeByH, maxSize));
+}
+
+function bjMake3DColor(baseColor) {
+  // Crée un dégradé 3D à partir d'une couleur de base
+  return `radial-gradient(ellipse at 35% 30%, color-mix(in srgb, ${baseColor} 60%, white 40%) 0%, ${baseColor} 55%, color-mix(in srgb, ${baseColor} 70%, black 30%) 100%)`;
+}
+
+function bjRenderGrid() {
+  const gridEl = document.getElementById('blockJamGrid');
+  if (!gridEl) return;
+  const sz = bjCellSize();
+  const gap = sz < 36 ? 4 : 7;
+  gridEl.style.gridTemplateColumns = `repeat(${bjCols}, ${sz}px)`;
+  gridEl.style.gridTemplateRows    = `repeat(${bjRows}, ${sz}px)`;
+  gridEl.style.gap = `${gap}px`;
+  gridEl.innerHTML = '';
+
+  for (let row = 0; row < bjRows; row++) {
+    for (let col = 0; col < bjCols; col++) {
+      const idx = row * bjCols + col;
+      const ci  = bjGrid[idx];
+      const accessible = ci !== -1 && ci !== ROCK && bjIsAccessible(idx);
+
+      const cell = document.createElement('div');
+      const base = `width:${sz}px;height:${sz}px;box-sizing:border-box;position:relative;transition:transform 0.12s cubic-bezier(0.34,1.56,0.64,1);`;
+
+      if (ci === -1) {
+        // Case vide
+        cell.style.cssText = base + `border-radius:50%;background:rgba(0,0,0,0.06);border:2px dashed rgba(0,0,0,0.1);`;
+
+      } else if (ci === ROCK) {
+        // Rocher style Voodoo — carré arrondi gris 3D
+        const rockSz = Math.round(sz * 0.82);
+        cell.style.cssText = base + `border-radius:${Math.round(sz*0.22)}px;display:flex;align-items:center;justify-content:center;`;
+        cell.innerHTML = `<div style="
+          width:${rockSz}px;height:${rockSz}px;
+          border-radius:${Math.round(sz*0.2)}px;
+          background: linear-gradient(145deg,#b0b8c8,#7a8494);
+          box-shadow: 0 ${Math.round(sz*0.1)}px 0 #555e6e, inset 0 2px 3px rgba(255,255,255,0.3);
+          border: 2px solid rgba(255,255,255,0.15);
+        "></div>`;
+
+      } else if (accessible) {
+        // Pastille accessible — effet 3D + ombre colorée
+        const color = bjColorFromPalette(ci);
+        const shadowColor = color.replace('rgb(', 'rgba(').replace(')', ',0.5)');
+        cell.style.cssText = base + `border-radius:50%;cursor:pointer;`;
+        cell.innerHTML = `<div style="
+          width:100%;height:100%;border-radius:50%;
+          background:${bjMake3DColor(color)};
+          box-shadow: 0 ${Math.round(sz*0.12)}px 0 ${shadowColor}, 0 ${Math.round(sz*0.06)}px ${Math.round(sz*0.18)}px rgba(0,0,0,0.2), inset 0 1px 2px rgba(255,255,255,0.5);
+          border: 2.5px solid rgba(255,255,255,0.5);
+          transition: transform 0.12s;
+        "></div>`;
+        cell.addEventListener('click', () => {
+          cell.classList.add('bj-cell-pop');
+          setTimeout(() => cell.classList.remove('bj-cell-pop'), 300);
+          bjOnCellClick(idx);
+        });
+        cell.addEventListener('mouseenter', () => cell.style.transform = `scale(1.12) translateY(-2px)`);
+        cell.addEventListener('mouseleave', () => cell.style.transform = `scale(1)`);
+
+      } else {
+        // Pastille bloquée — plus sombre, moins saturée
+        const color = bjColorFromPalette(ci);
+        cell.style.cssText = base + `border-radius:50%;opacity:0.45;`;
+        cell.innerHTML = `<div style="
+          width:100%;height:100%;border-radius:50%;
+          background:${bjMake3DColor(color)};
+          box-shadow: 0 2px 0 rgba(0,0,0,0.2);
+          border: 2px solid rgba(255,255,255,0.2);
+          filter: saturate(0.6);
+        "></div>`;
+      }
+
+      gridEl.appendChild(cell);
+    }
+  }
+}
+
+function bjGetCellCenter(idx) {
+  // Retourne la position centrale d'une case dans la grille (coordonnées écran)
+  const gridEl = document.getElementById('blockJamGrid');
+  if (!gridEl) return null;
+  const cells = gridEl.children;
+  if (!cells[idx]) return null;
+  const r = cells[idx].getBoundingClientRect();
+  return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width };
+}
+
+function bjAnimateAlongPath(path, ci, onComplete) {
+  if (!path || path.length === 0) { onComplete(); return; }
+
+  const color = bjColorFromPalette(ci);
+  const shadowColor = color.replace('rgb(', 'rgba(').replace(')', ',0.5)');
+
+  const startPos = bjGetCellCenter(path[0]);
+  if (!startPos) { onComplete(); return; }
+
+  const sz = startPos.w;
+
+  const fly = document.createElement('div');
+  fly.style.cssText = `
+    position: fixed;
+    z-index: 9999;
+    pointer-events: none;
+    border-radius: 50%;
+    width: ${sz}px;
+    height: ${sz}px;
+    background: ${bjMake3DColor(color)};
+    box-shadow: 0 ${Math.round(sz*0.12)}px 0 ${shadowColor}, 0 4px 12px rgba(0,0,0,0.25);
+    border: 2.5px solid rgba(255,255,255,0.5);
+    transform: translate(-50%, -50%);
+    left: ${startPos.x}px;
+    top: ${startPos.y}px;
+    transition: left 0.09s ease, top 0.09s ease;
+    will-change: left, top;
+  `;
+  document.body.appendChild(fly);
+
+  const STEP_MS = 90;
+  let step = 1;
+
+  function moveNext() {
+    if (step >= path.length) {
+      flyToWaitZone();
+      return;
+    }
+    const pos = bjGetCellCenter(path[step]);
+    if (pos) {
+      fly.style.left = pos.x + 'px';
+      fly.style.top  = pos.y + 'px';
+    }
+    step++;
+    setTimeout(moveNext, STEP_MS);
+  }
+
+  function flyToWaitZone() {
+    const waitRow = document.getElementById('waitZoneRow');
+    const slotIdx = bjWait.length - 1;
+    const slots = waitRow ? waitRow.querySelectorAll('div') : [];
+    const slot = slots[slotIdx];
+
+    if (slot) {
+      const toRect = slot.getBoundingClientRect();
+      const tx = toRect.left + toRect.width / 2;
+      const ty = toRect.top  + toRect.height / 2;
+
+      // Voler vers le slot
+      fly.style.transition = 'left 0.2s cubic-bezier(0.34,1.3,0.64,1), top 0.2s cubic-bezier(0.34,1.3,0.64,1), transform 0.2s';
+      fly.style.left = tx + 'px';
+      fly.style.top  = ty + 'px';
+      fly.style.transform = 'translate(-50%,-50%) scale(1)';
+
+      setTimeout(() => {
+        // Disparaît — le slot réel prend le relais
+        fly.remove();
+        // Re-render la zone d'attente AVEC le slot maintenant visible
+        bjRenderWait();
+        // Maintenant vérifier le match
+        onComplete();
+      }, 200);
+    } else {
+      fly.remove();
+      bjRenderWait();
+      onComplete();
+    }
+  }
+
+  setTimeout(moveNext, STEP_MS);
+}
+
+function bjOnCellClick(idx) {
+  if (bjGameOver || bjAnimating) return;
+  const ci = bjGrid[idx];
+  if (ci === -1 || ci === ROCK) return;
+  if (!bjIsAccessible(idx)) return;
+  if (bjWait.length >= WAIT_MAX) { bjSetMsg('Zone pleine !'); return; }
+
+  // Trouver le chemin avant de modifier la grille
+  const path = bjFindPath(idx);
+
+  // Mettre à jour l'état
+  bjWait.push(ci);
+  bjGrid[idx] = -1;
+  triggerHaptic('light');
+  bjAnimating = true;
+
+  // Re-render immédiatement (la case devient vide)
+  bjRenderGrid();
+  bjRenderWait();
+
+  // Animer la pastille le long du chemin
+  // On passe le groupe de la pastille qui vient d'arriver
+  const newGroup = bjGetGroup(ci);
+  bjAnimateAlongPath(path, ci, () => {
+    bjAnimating = false;
+    bjRenderWait();
+    bjCheckMatch(newGroup);
+    bjCheckGameOver();
+  });
+}
+
+function bjSortWait() {
+  bjWait.sort((a, b) => {
+    return bjGetGroup(a) - bjGetGroup(b);
+  });
+}
+
+function bjRenderWait(skipSort) {
+  // Ne pas trier pendant une animation — la pastille doit aller au bon slot
+  if (!skipSort && !bjAnimating) bjSortWait();
+  const row = document.getElementById('waitZoneRow');
+  if (!row) return;
+  const sz = Math.min(bjCellSize(), 44);
+  row.innerHTML = '';
+  for (let i = 0; i < WAIT_MAX; i++) {
+    const slot = document.createElement('div');
+    slot.style.cssText = `width:${sz}px;height:${sz}px;border-radius:50%;box-sizing:border-box;flex-shrink:0;transition:all 0.15s;`;
+    if (i < bjWait.length) {
+      const color = bjColorFromPalette(bjWait[i]);
+      const shadowColor = color.replace('rgb(', 'rgba(').replace(')', ',0.45)');
+      slot.style.background = bjMake3DColor(color);
+      slot.style.boxShadow  = `0 ${Math.round(sz*0.1)}px 0 ${shadowColor}, 0 2px 8px rgba(0,0,0,0.15)`;
+      slot.style.border     = '2.5px solid rgba(255,255,255,0.5)';
+    } else {
+      slot.style.background = 'rgba(0,0,0,0.06)';
+      slot.style.border     = '2px dashed rgba(0,0,0,0.12)';
+    }
+    row.appendChild(slot);
+  }
+}
+
+function bjCheckMatch(newGroup) {
+  // Compter uniquement le groupe de la pastille qui vient d'arriver
+  if (newGroup === undefined) return;
+
+  const count = bjWait.filter(ci => bjGetGroup(ci) == newGroup).length;
+
+  if (count >= MATCH_COUNT) {
+    const matchIndices = [];
+    bjWait.forEach((ci, i) => {
+      if (bjGetGroup(ci) == newGroup && matchIndices.length < MATCH_COUNT) matchIndices.push(i);
+    });
+
+    // Animer le pop des 3 slots
+    const waitRow = document.getElementById('waitZoneRow');
+    const slots = waitRow ? waitRow.querySelectorAll('div') : [];
+    matchIndices.forEach((slotIdx, i) => {
+      const slot = slots[slotIdx];
+      if (!slot) return;
+      setTimeout(() => {
+        slot.style.transition = 'transform 0.15s cubic-bezier(0.34,1.56,0.64,1)';
+        slot.style.transform = 'scale(1.35)';
+        setTimeout(() => {
+          slot.style.transform = 'scale(0)';
+          slot.style.opacity = '0';
+        }, 150);
+      }, i * 60);
+    });
+
+    // Après l'animation → retirer et révéler
+    setTimeout(() => {
+      let removed = 0;
+      bjWait = bjWait.filter(ci => {
+        if (bjGetGroup(ci) == newGroup && removed < MATCH_COUNT) { removed++; return false; }
+        return true;
+      });
+      // En mode gameGrid : révéler directement par paletteIdx du groupe
+      if (currentGame.gameGrid) {
+        if ((currentGame.remainingPerColor[newGroup]||0) > 0) {
+          bjRevealColor(newGroup);
+        }
+      } else {
+        currentGame.palette.forEach((_,idx) => {
+          const cg = bjColorGroups[idx] >= 0 ? bjColorGroups[idx] : -1;
+          if (cg == newGroup && (currentGame.remainingPerColor[idx]||0) > 0) {
+            bjRevealColor(idx);
+          }
+        });
+      }
+      bjSetMsg('Match ! ✨');
+      bjRenderWait();
+      bjRenderGrid();
+    }, 400);
+
+    return;
+  }
+
+  bjSetMsg('Envoie 3 sauts identiques !');
+}
+
+function bjRevealColor(colorIndex) {
+  const grid = currentGame.grid;
+  const gridW = currentGame.gridW;
+  const gridH = currentGame.gridH;
+  const cellW = gameCanvas.width / gridW;
+  const cellH = gameCanvas.height / gridH;
+  const col = currentGame.palette[colorIndex];
+  const colorRGB = col ? `rgb(${col.r},${col.g},${col.b})` : '#fff';
+
+  // Collecter les cellules à révéler
+  const cells = [];
+  for (let y = 0; y < gridH; y++) {
+    for (let x = 0; x < gridW; x++) {
+      if (grid[y][x] === colorIndex) {
+        grid[y][x] = -1;
+        currentGame.revealed++;
+        if (currentGame.remainingPerColor[colorIndex] > 0)
+          currentGame.remainingPerColor[colorIndex]--;
+        cells.push({ cx: x * cellW + cellW/2, cy: y * cellH + cellH/2 });
+      }
+    }
+  }
+
+  triggerHaptic('medium');
+  bjSetMsg('Match ! Pixels révélés !');
+  updateGameUI();
+  needsSave = true;
+
+  if (!cells.length) { saveCurrentProgress(); checkCompletion(); return; }
+
+  // Canvas particules
+  const particleCanvas = document.getElementById('gameCanvasParticles');
+  if (!particleCanvas) { saveCurrentProgress(); checkCompletion(); return; }
+  particleCanvas.width = gameCanvas.width;
+  particleCanvas.height = gameCanvas.height;
+  const ctxP = particleCanvas.getContext('2d');
+
+  // Générer particules depuis le bas (zone d'attente) vers chaque cellule
+  const DURATION = 500; // ms
+  const particles = cells.map(cell => ({
+    cx: cell.cx, cy: cell.cy,
+    delay: Math.random() * 150, // léger décalage
+    done: false
+  }));
+
+  let startTs = null;
+  let revealed = false;
+
+  function animParticles(ts) {
+    if (!startTs) startTs = ts;
+    const elapsed = ts - startTs;
+
+    ctxP.clearRect(0, 0, particleCanvas.width, particleCanvas.height);
+
+    let allDone = true;
+    particles.forEach(p => {
+      const t = Math.max(0, elapsed - p.delay);
+      const progress = Math.min(t / DURATION, 1);
+
+      if (progress < 1) {
+        allDone = false;
+        // Particule qui monte du bas vers la cellule cible
+        const startY = particleCanvas.height + 20;
+        const px = p.cx;
+        const py = startY + (p.cy - startY) * (progress * progress);
+        const size = 4 + (1 - progress) * 4;
+        ctxP.globalAlpha = 1 - progress * 0.3;
+        ctxP.fillStyle = colorRGB;
+        ctxP.beginPath();
+        ctxP.arc(px, py, size, 0, Math.PI * 2);
+        ctxP.fill();
+
+        // Révéler le pixel quand la particule arrive
+        if (progress > 0.85 && !p.done) {
+          p.done = true;
+          ctxScratch.globalCompositeOperation = 'destination-out';
+          ctxScratch.beginPath();
+          ctxScratch.arc(p.cx, p.cy, Math.min(cellW, cellH) * 0.85, 0, Math.PI * 2);
+          ctxScratch.fill();
+          ctxScratch.globalCompositeOperation = 'source-over';
+        }
+      } else if (!p.done) {
+        p.done = true;
+        ctxScratch.globalCompositeOperation = 'destination-out';
+        ctxScratch.beginPath();
+        ctxScratch.arc(p.cx, p.cy, Math.min(cellW, cellH) * 0.85, 0, Math.PI * 2);
+        ctxScratch.fill();
+        ctxScratch.globalCompositeOperation = 'source-over';
+      }
+    });
+
+    ctxP.globalAlpha = 1;
+
+    if (!allDone) {
+      requestAnimationFrame(animParticles);
+    } else {
+      ctxP.clearRect(0, 0, particleCanvas.width, particleCanvas.height);
+      saveCurrentProgress();
+      checkCompletion();
+    }
+  }
+
+  requestAnimationFrame(animParticles);
+}
+
+function bjRefillGrid() {} // plus utilisé — grille fixe
+
+function bjCheckGameOver() {
+  if (bjWait.length >= WAIT_MAX) {
+    const counts = {};
+    bjWait.forEach(c => counts[c]=(counts[c]||0)+1);
+    if (!Object.values(counts).some(v => v >= MATCH_COUNT)) {
+      bjGameOver = true;
+      const go = document.getElementById('bjGameOver');
+      if (go) go.style.display = 'flex';
+      const gridEl = document.getElementById('blockJamGrid');
+      if (gridEl) { gridEl.style.opacity='0.4'; gridEl.style.pointerEvents='none'; }
+    }
+  }
+}
+
+function bjSetMsg(t) {
+  const el = document.getElementById('bjMsg');
+  if (el) el.textContent = t;
+}
+
+function bjInit() {
+  bjWait = [];
+  bjGameOver = false;
+  bjAnimating = false;
+  const go = document.getElementById('bjGameOver');
+  if (go) go.style.display = 'none';
+  const gridEl = document.getElementById('blockJamGrid');
+  if (gridEl) { gridEl.style.opacity='1'; gridEl.style.pointerEvents=''; }
+
+  if (currentGame.gameGrid && currentGame.gameGrid.length > 0) {
+    // Mode gameGrid du serveur — charger directement
+    const gg = currentGame.gameGrid;
+    bjRows = gg.length;
+    bjCols = gg[0].length;
+    bjGrid = [];
+    for (let row = 0; row < bjRows; row++) {
+      for (let col = 0; col < bjCols; col++) {
+        bjGrid.push(gg[row][col]);
+      }
+    }
+    // S'assurer que remainingPerColor est correct pour tous les paletteIdx présents
+    // (recalculer depuis la grille image si nécessaire)
+    if (!currentGame.remainingPerColor || currentGame.remainingPerColor.every(v => v === 0)) {
+      const counts = new Array(currentGame.palette.length).fill(0);
+      if (currentGame.grid) {
+        for (let y = 0; y < currentGame.gridH; y++) {
+          for (let x = 0; x < currentGame.gridW; x++) {
+            const v = currentGame.grid[y][x];
+            if (v >= 0 && v < counts.length) counts[v]++;
+          }
+        }
+      }
+      currentGame.remainingPerColor = counts;
+    }
+    // Initialiser bjColorGroups comme identité (chaque paletteIdx = son propre groupe)
+    bjColorGroups = currentGame.palette.map((_, i) => i);
+    bjGroupColors = currentGame.palette.map(c => [c.r, c.g, c.b]);
+  } else {
+    bjBuildGrid();
+  }
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      bjRenderGrid();
+      bjRenderWait();
+      bjSetMsg('Envoie 3 sauts identiques !');
+    });
+  });
+}
+
+document.getElementById('bjRestartBtn')?.addEventListener('click', () => {
+  const go = document.getElementById('bjGameOver');
+  if (go) go.style.display = 'none';
+  startGame(currentGame.collectionId, currentGame.levelId);
+});
+
+// Stubs pour compatibilité avec le reste du code
+function initConveyor() { bjInit(); }
+function buildColorBlocks() {}
+function refreshPaletteCounters() {}
+function handleColorDepleted(ci) { updateGameUI(); checkCompletion(); }
+let conveyorRunning = false;
+
+function setActiveColor() {} // no-op
+
+// Re-render la grille si la taille change (rotation, resize)
+window.addEventListener('resize', () => {
+  if (document.getElementById('screen-game')?.classList.contains('active')) {
+    requestAnimationFrame(() => {
+      bjRenderGrid();
+      bjRenderWait();
+    });
+  }
+});
+
+
+function getNextLevel() {
+  const col = LEVELS_DATA.collections.find(c => c.id === currentGame.collectionId);
+  if (!col || !col.levels) return null;
+  const idx = col.levels.findIndex(l => l.id === currentGame.levelId);
+  if (idx === -1 || idx >= col.levels.length - 1) return null;
+  return col.levels[idx + 1];
+}
+
+function launchFireworks(onDone) {
+  const fw = document.createElement('canvas');
+  fw.id = 'fwCanvas';
+  fw.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;z-index:998;pointer-events:none;';
+  fw.width = window.innerWidth;
+  fw.height = window.innerHeight;
+  document.body.appendChild(fw);
+  const ctx = fw.getContext('2d');
+
+  const COLORS = ['#FF4D6D','#FFD60A','#06D6A0','#4CC9F0','#F72585','#FF9E00','#ffffff','#c77dff'];
+  let particles = [], rockets = [], animId = null;
+  let allLaunched = false;
+
+  function Particle(x, y, color) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 1.5 + Math.random() * 6;
+    this.x = x; this.y = y;
+    this.vx = Math.cos(angle) * speed;
+    this.vy = Math.sin(angle) * speed;
+    this.color = color; this.life = 1;
+    this.decay = 0.010 + Math.random() * 0.016;
+    this.size = 2.5 + Math.random() * 2.5;
+    this.gravity = 0.10; this.trail = [];
+  }
+
+  function Rocket(x) {
+    this.x = x; this.y = fw.height;
+    this.vy = -(10 + Math.random() * 6);
+    this.targetY = fw.height * 0.15 + Math.random() * fw.height * 0.35;
+    this.color = COLORS[Math.floor(Math.random() * COLORS.length)];
+    this.trail = []; this.exploded = false;
+  }
+
+  function explode(x, y, color) {
+    for (let i = 0; i < 90; i++) particles.push(new Particle(x, y, color));
+    for (let i = 0; i < 20; i++) {
+      const p = new Particle(x, y, '#ffffff');
+      p.size = 1.5; p.decay = 0.025; particles.push(p);
+    }
+  }
+
+  function tick() {
+    // Canvas transparent — on efface avec clearRect pour voir le jeu en dessous
+    ctx.clearRect(0, 0, fw.width, fw.height);
+
+    rockets.forEach(r => {
+      if (r.exploded) return;
+      r.trail.push({x: r.x, y: r.y});
+      if (r.trail.length > 10) r.trail.shift();
+      r.trail.forEach((t, i) => {
+        ctx.globalAlpha = (i / r.trail.length) * 0.7;
+        ctx.fillStyle = '#ffcc44';
+        ctx.beginPath(); ctx.arc(t.x, t.y, 2, 0, Math.PI*2); ctx.fill();
+      });
+      ctx.globalAlpha = 1; ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.arc(r.x, r.y, 3, 0, Math.PI*2); ctx.fill();
+      r.y += r.vy; r.vy *= 0.98;
+      if (r.y <= r.targetY) { r.exploded = true; explode(r.x, r.y, r.color); }
+    });
+
+    particles.forEach(p => {
+      p.trail.push({x: p.x, y: p.y, life: p.life});
+      if (p.trail.length > 5) p.trail.shift();
+      p.trail.forEach((t, i) => {
+        ctx.globalAlpha = t.life * 0.4 * (i / p.trail.length);
+        ctx.fillStyle = p.color;
+        ctx.beginPath(); ctx.arc(t.x, t.y, p.size * 0.4, 0, Math.PI*2); ctx.fill();
+      });
+      ctx.globalAlpha = p.life; ctx.fillStyle = p.color;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI*2); ctx.fill();
+      p.x += p.vx; p.y += p.vy; p.vy += p.gravity; p.vx *= 0.97; p.life -= p.decay;
+    });
+
+    ctx.globalAlpha = 1;
+    particles = particles.filter(p => p.life > 0);
+
+    const done = allLaunched && particles.length === 0 && rockets.every(r => r.exploded);
+    if (!done) {
+      animId = requestAnimationFrame(tick);
+    } else {
+      fw.remove();
+      if (onDone) onDone();
+    }
+  }
+
+  const w = fw.width;
+  const launches = [
+    [w*0.5, 0], [w*0.25, 200], [w*0.75, 300],
+    [w*0.5, 500], [w*0.15, 600], [w*0.85, 700],
+    [w*0.4, 900], [w*0.6, 1000], [w*0.5, 1100]
+  ];
+  launches.forEach(([x, delay], i) => {
+    setTimeout(() => {
+      rockets.push(new Rocket(x));
+      if (!animId) tick();
+      if (i === launches.length - 1) {
+        // Dernière fusée lancée — marquer comme terminé après qu'elle explose
+        setTimeout(() => { allLaunched = true; }, 1000);
+      }
+    }, delay);
+  });
+}
+
+function finishLevel() {
+  currentGame.completed = true;
+  markLevelCompleted(currentGame.levelId);
+  refreshGlobalProgressUI();
+  saveCurrentProgress();
+  triggerHaptic("heavy");
+
+  // Feux d'artifice, puis overlay quand c'est fini
+  launchFireworks(() => {
+    const nextLvl = getNextLevel();
+    if (nextLvl) {
+      const endOverlay = document.getElementById("endOverlay");
+      const endMsg = document.getElementById("endMsg");
+      const btnEndBack = document.getElementById("btnEndBack");
+      if (endMsg) endMsg.textContent = "Image complétée ! 🎉";
+      if (btnEndBack) btnEndBack.textContent = "Niveau suivant →";
+      if (endOverlay) endOverlay.style.display = "flex";
+      if (window._autoNextTimeout) clearTimeout(window._autoNextTimeout);
+      window._autoNextTimeout = setTimeout(() => {
+        if (endOverlay) endOverlay.style.display = "none";
+        startGame(currentGame.collectionId, nextLvl.id);
+      }, 2000);
+    } else {
+      const endOverlay = document.getElementById("endOverlay");
+      const endMsg = document.getElementById("endMsg");
+      const btnEndBack = document.getElementById("btnEndBack");
+      if (endMsg) endMsg.textContent = "Catégorie terminée ! 🏆";
+      if (btnEndBack) btnEndBack.textContent = "Retour";
+      if (endOverlay) endOverlay.style.display = "flex";
+    }
+  });
+}
+
+let activeCategory = null;
+
+function buildCategoryTabs() {
+  const container = document.getElementById("categoryTabs");
+  container.innerHTML = "";
+
+  LEVELS_DATA.collections.forEach(col => {
+    const tab = document.createElement("div");
+    tab.className = "categoryTab";
+    tab.textContent = (col.emoji || "🎨") + " " + col.name;
+
+    tab.addEventListener("click", () => {
+      activeCategory = col.id;
+      refreshCategoryTabsUI();
+      buildHomeGallery();
+    });
+
+    container.appendChild(tab);
+  });
+
+  // auto-select first
+  if (!activeCategory && LEVELS_DATA.collections.length > 0) {
+    activeCategory = LEVELS_DATA.collections[0].id;
+  }
+
+  refreshCategoryTabsUI();
+}
+
+function refreshCategoryTabsUI() {
+  document.querySelectorAll(".categoryTab").forEach((tab, idx) => {
+    const col = LEVELS_DATA.collections[idx];
+    if (col.id === activeCategory) tab.classList.add("active");
+    else tab.classList.remove("active");
+  });
+}
+
+async function buildHomeGallery() {
+  const grid = document.getElementById("homeGalleryGrid");
+  grid.innerHTML = "";
+
+  const col = LEVELS_DATA.collections.find(c => c.id === activeCategory);
+  if (!col) return;
+
+  (col.levels || []).forEach(async lvl => {
+    const item = document.createElement("div");
+    item.className = "galleryItem";
+
+    const canvas = document.createElement("canvas");
+canvas.dataset.levelThumb = lvl.id;
+
+    canvas.width = 300;
+    canvas.height = 300;
+
+    const title = document.createElement("div");
+    title.className = "galleryItemTitle";
+    title.textContent = lvl.title || lvl.id;
+
+    item.appendChild(canvas);
+    item.appendChild(title);
+
+    item.addEventListener("click", () => {
+      startGame(col.id, lvl.id);
+    });
+
+    grid.appendChild(item);
+
+    await drawLevelThumbnail(canvas, col.id, lvl.id);
+  });
+}
+
+
+
+  // ========================= 
+  // INIT
+  // =========================
+  async function initGame() {
+    await loadLevelsConfig();
+    await initScratchAudio();
+    refreshGlobalProgressUI();
+    refreshContinueButton();
+
+buildCategoryTabs();  // 👈 catégories du builder !
+  buildHomeGallery();   // 👈 galerie d'accueil !
+  }
+  initGame();
+ 
+
+
+  // Débloque le stockage sur iOS après le premier tap (PWA)
+  document.addEventListener("click", () => {
+    try {
+      localStorage.setItem("__sbn_touch", "1");
+    } catch (e) {}
+  }, { once: true });
+</script>
+
+<div id="endOverlay" style="display:none; position:fixed; inset:0;
+  background:rgba(0,0,0,0.5);  align-items:center;
+  justify-content:center; z-index:999;">
+  <div style="background:white; border-radius:20px; padding:16px; width:80%; max-width:320px; text-align:center;">
+    <div id="endMsg" style="font-weight:600; margin-bottom:8px;">Image complétée ! 🎉</div>
+    <button id="btnEndBack" class="btn btnPrimary">Retour</button>
+  </div>
+</div>
+
+<script>
+  const endOverlay = document.getElementById("endOverlay");
+  const btnEndBack = document.getElementById("btnEndBack");
+    if (btnEndBack) btnEndBack.addEventListener("click", ()=>{
+    // Annuler l'auto-avance si elle était en cours
+    if (window._autoNextTimeout) clearTimeout(window._autoNextTimeout);
+    saveCurrentProgress();
+    endOverlay.style.display="none";
+    document.getElementById("screen-game").classList.remove("fullscreen");
+    lockBodyScrollForGame(false);
+    const bottomNavEnd = document.getElementById('bottomNav');
+    if (bottomNavEnd) bottomNavEnd.style.display = 'flex';
+    showScreen("home");
+  });
+
+
+  // Enregistrement du Service Worker pour PWA
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker
+        .register("/sw.js") /* navigator.serviceWorker.register('/sw.js'); */
+
+        .catch(err => console.warn("SW registration failed", err));
+    });
+  }
+</script>
+
+<!-- Sons UI & scratch -->
+<audio id="sndSelect" src="sounds/sound_pop_select.mp3"></audio>
+<audio id="sndDone" src="sounds/sound_pop_done.mp3"></audio>
+<audio id="sndScratch" src="sounds/dragon-studio-pop-402324.mp3"></audio>
+
+<script>
+// ======== WEBAUDIO SCRATCH ENGINE ========
+let audioCtx = null;
+let scratchBuffer = null;
+
+async function initScratchAudio() {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const res = await fetch("sounds/sound_scratch.mp3");
+    const arrayBuffer = await res.arrayBuffer();
+    scratchBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+  } catch (e) {
+    console.warn("initScratchAudio error", e);
+  }
+}
+
+function playScratchAudio() {
+  if (!scratchBuffer || !audioCtx) return;
+  const source = audioCtx.createBufferSource();
+  source.buffer = scratchBuffer;
+  source.connect(audioCtx.destination);
+  source.start(0);
+}
+
+const sndSelect = document.getElementById('sndSelect');
+let lastScratchSound = 0;
+
+function playScratchSound() {
+  const now = performance.now();
+  if (now - lastScratchSound < 80) return;
+  lastScratchSound = now;
+  playScratchAudio();
+}
+
+// Son de sélection de couleur
+document.addEventListener('click', (e)=>{
+  if(e.target.classList.contains('dot')) {
+    try {
+      if (sndSelect) {
+        sndSelect.currentTime = 0;
+        sndSelect.play();
+      }
+    } catch(e){}
+  }
+});
+
+// Débloque l'audio sur iOS au premier toucher
+document.addEventListener("touchstart", () => {
+  if (audioCtx && audioCtx.state === "suspended") {
+    audioCtx.resume();
+  }
+}, { once: true });
+</script>
+
+<script>
+window.addEventListener("load", () => {
+    const splash = document.getElementById("splashScreen");
+    const appMain = document.getElementById("appMain");
+    const bottomNav = document.getElementById("bottomNav");
+
+    // Au début → tout est caché sauf le splash
+    if (appMain) appMain.style.display = "none";
+    if (bottomNav) bottomNav.style.display = "none";
+
+    // Splash 5 secondes
+    setTimeout(() => {
+        splash.style.opacity = "0";
+        splash.style.transition = "opacity 0.6s";
+        
+        setTimeout(() => {
+            splash.style.display = "none";
+            
+            // Maintenant on montre le menu + l'accueil
+            if (appMain) appMain.style.display = "block";
+            if (bottomNav) bottomNav.style.display = "flex";
+
+            showScreen("home");
+        }, 600);
+
+    }, 5000);
+});
+
+</script>
+<!-- ==== BOTTOM NAVBAR ==== -->
+<nav id="bottomNav" class="bottomNav">
+
+    <!-- 1️⃣ COLLECTIONS (écran principal) -->
+    <button class="navBtn" data-target="collections">
+        <img src="icons/home.svg" class="navIcon">
+        <span>Collections</span>
+    </button>
+
+    <!-- 2️⃣ QUÊTE (nouvel écran) -->
+    <button class="navBtn" data-target="quest">
+        <img src="icons/quest.svg" class="navIcon">
+        <span>Quête</span>
+    </button>
+
+    <!-- 3️⃣ MES IMAGES -->
+    <button class="navBtn" data-target="myworks">
+        <img src="icons/star.svg" class="navIcon">
+        <span>Mes images</span>
+    </button>
+
+    <!-- 4️⃣ OPTIONS -->
+    <button class="navBtn" data-target="settings">
+        <img src="icons/settings.svg" class="navIcon">
+        <span>Options</span>
+    </button>
+ 
+</nav>
+
+
+<script>
+// ===== Bottom Navigation Logic =====
+document.querySelectorAll("#bottomNav .navBtn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const target = btn.dataset.target;
+
+    // gestion visuelle
+    document.querySelectorAll("#bottomNav .navBtn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+
+    // connexion à ton système showScreen()
+    if (target === "collections") showScreen("home");
+    if (target === "quest") showScreen("quest");
+
+    // pas encore créés → placeholders pour l’instant :
+    if (target === "myworks") alert("Mes images arrive bientôt ✨");
+    if (target === "settings") alert("Options bientôt disponibles ⚙️");
+  });
+}); 
+
+</script> 
+
+</body>
+</html>
