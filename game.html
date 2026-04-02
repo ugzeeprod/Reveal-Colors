@@ -3926,13 +3926,13 @@ buildCategoryTabs();  // 👈 catégories du builder !
   });
 
 
-  // Enregistrement du Service Worker pour PWA
+  // Désactiver le Service Worker et vider les caches pour éviter les conflits
   if ("serviceWorker" in navigator) {
-    window.addEventListener("load", () => {
-      navigator.serviceWorker
-        .register("/sw.js") /* navigator.serviceWorker.register('/sw.js'); */
-
-        .catch(err => console.warn("SW registration failed", err));
+    navigator.serviceWorker.getRegistrations().then(regs => {
+      regs.forEach(reg => reg.unregister());
+    });
+    caches.keys().then(keys => {
+      keys.forEach(key => caches.delete(key));
     });
   }
 </script>
