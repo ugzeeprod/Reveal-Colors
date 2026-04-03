@@ -1622,14 +1622,14 @@ html, body {
 </main>
 </div> <!-- fin du #app -->
 
-<script src="idb.js"></script>
+
 <script>
 
 // ================= IndexedDB Helper + Compression ==================
 
 const DB_NAME = "RevealColorsDB";
 const STORE_NAME = "levelProgress";
-const DB_VERSION = 2;
+const DB_VERSION = 1;
 
 function openDB() {
   return new Promise((resolve, reject) => {
@@ -1845,13 +1845,13 @@ function decompressGrid(revealedList, baseGrid) {
   // SAUVEGARDE PAR NIVEAU
   // =========================
   function levelProgressKey(collectionId, levelId) {
-    return `${collectionId}_${levelId}`;
+    return `sbn_progress_${collectionId}_${levelId}`;
   }
   
 async function loadLevelProgressData(collectionId, levelId) {
   const key = levelProgressKey(collectionId, levelId);
   try {
-    return await rcGetProgress(key);
+    return await idbGet(key);
   } catch(e) {
     console.error("IndexedDB load error:", e);
     return null;
@@ -1870,7 +1870,7 @@ async function saveLevelProgressData(payload) {
     revealedCells: compressGrid(payload.grid)
   };
   try {
-    await rcSetProgress(key, compact);
+    await idbSet(key, compact);
   } catch(e) {
     console.error("IndexedDB save error:", e);
   }
@@ -1882,11 +1882,13 @@ async function saveLevelProgressData(payload) {
   // =========================
   async function loadLevelsConfig() {
     try {
-      const res = await fetch('levels/levels.json');
-      if (!res.ok) { LEVELS_DATA = { collections: [] }; return; }
-      LEVELS_DATA = await res.json();
+      const res = await fetch("/levels/levels.json");
+      if (!res.ok) throw new Error("HTTP "+res.status);
+      const data = await res.json();
+      if (!data.collections) data.collections=[];
+      LEVELS_DATA = data;
     } catch (e) {
-      console.warn('Erreur chargement levels.json:', e);
+      console.warn("Impossible de charger levels.json, aucune collection pour l’instant.");
       LEVELS_DATA = { collections: [] };
     }
   }
@@ -2088,19 +2090,18 @@ canvas.dataset.levelThumb = lvl.id;  // 👈 IMPORTANT pour identifier la miniat
 async function drawLevelThumbnail(canvas, collectionId, levelId) {
   try {
     const ctx = canvas.getContext("2d");
+
+    // reset
     canvas.width = canvas.width;
 
-    const res = await fetch(`levels/${levelId}.json`);
-    if (!res.ok) { ctx.fillStyle="#eee"; ctx.fillRect(0,0,canvas.width,canvas.height); return; }
-    const levelData = await res.json();
-    const { palette, grid: baseGrid, imageBase64 } = levelData;
+    const base = `/levels/${collectionId}/${levelId}`;
+    const [paletteRes, gridRes] = await Promise.all([
+      fetch(base + "_palette.json"),
+      fetch(base + "_grid.json")
+    ]);
 
-    if (imageBase64) {
-      const img = new Image();
-      img.onload = () => { ctx.drawImage(img, 0, 0, canvas.width, canvas.height); };
-      img.src = imageBase64;
-      return;
-    }
+    const palette = await paletteRes.json();
+    const baseGrid = await gridRes.json();
 
     const saved = await loadLevelProgressData(collectionId, levelId);
 
@@ -2316,7 +2317,7 @@ applyZoom();
 
     // Reset de la progression — on repart toujours de zéro
     const resetKey = levelProgressKey(collectionId, levelId);
-    try { await rcDeleteProgress(resetKey); } catch(e) {}
+    try { await idbSet(resetKey, null); } catch(e) {}
 
     // Reset visuel immédiat du canvas scratch
     try {
@@ -2405,33 +2406,37 @@ function setupCanvasForGrid() {
 
   async function loadLevelDataFromServer(collectionId, levelId) {
     try {
-      // Charger depuis le fichier JSON statique sur GitHub Pages
-      const res = await fetch(`levels/${levelId}.json`);
-      if (!res.ok) throw new Error(`Niveau introuvable: levels/${levelId}.json`);
-      const levelData = await res.json();
+      const base = `/levels/${collectionId}/${levelId}`;
+      const [metaRes, paletteRes, gridRes, gameGridRes] = await Promise.all([
+        fetch(base + "_meta.json"),
+        fetch(base + "_palette.json"),
+        fetch(base + "_grid.json"),
+        fetch(base + "_gameGrid.json").catch(() => null),
+      ]);
+      if (!metaRes.ok || !paletteRes.ok || !gridRes.ok) {
+        throw new Error("Erreur chargement fichiers de niveau");
+      }
+      const meta = await metaRes.json();
+      const palette = await paletteRes.json();
+      const grid = await gridRes.json();
 
-      const { grid, palette, gameGrid, imageBase64 } = levelData;
+      // Charger la gameGrid si disponible
+      currentGame.gameGrid = null;
+      if (gameGridRes && gameGridRes.ok) {
+        try { 
+          currentGame.gameGrid = await gameGridRes.json();
+          console.log('gameGrid chargée:', currentGame.gameGrid?.length, 'rows x', currentGame.gameGrid?.[0]?.length, 'cols');
+        } catch(e) { console.warn('gameGrid parse error:', e); }
+      } else {
+        console.log('Pas de gameGrid trouvée — génération aléatoire');
+      }
 
-      currentGame.gameGrid = gameGrid || null;
       currentGame.gridH = grid.length;
       currentGame.gridW = grid[0].length;
+
       currentGame.baseGrid = grid;
       currentGame.palette = palette;
       currentGame.totalCells = currentGame.gridW * currentGame.gridH;
-
-      // Afficher l'image
-      if (imageBase64) {
-        const img = new Image();
-        img.onload = () => {
-          const ratio = Math.min(gameCanvas.width / img.width, gameCanvas.height / img.height);
-          const w = img.width * ratio, h = img.height * ratio;
-          const x = (gameCanvas.width - w) / 2, y = (gameCanvas.height - h) / 2;
-          const ctxImg = gameCanvas.getContext('2d');
-          ctxImg.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
-          ctxImg.drawImage(img, x, y, w, h);
-        };
-        img.src = imageBase64;
-      }
 
       const saved = await loadLevelProgressData(collectionId, levelId);
 
@@ -3230,16 +3235,16 @@ function bjRenderGrid() {
         cell.addEventListener('mouseleave', () => cell.style.transform = `scale(1)`);
 
       } else {
-        // Pastille bloquée — plus sombre, moins saturée
+        // Pastille bloquée — couleur visible + petit cadenas
         const color = bjColorFromPalette(ci);
-        cell.style.cssText = base + `border-radius:50%;opacity:0.45;`;
+        const shadowColor = color.replace('rgb(', 'rgba(').replace(')', ',0.35)');
+        cell.style.cssText = base + `border-radius:50%;opacity:0.85;`;
         cell.innerHTML = `<div style="
-          width:100%;height:100%;border-radius:50%;
+          width:100%;height:100%;border-radius:50%;position:relative;
           background:${bjMake3DColor(color)};
-          box-shadow: 0 2px 0 rgba(0,0,0,0.2);
-          border: 2px solid rgba(255,255,255,0.2);
-          filter: saturate(0.6);
-        "></div>`;
+          box-shadow: 0 ${Math.round(sz*0.08)}px 0 ${shadowColor}, 0 2px 4px rgba(0,0,0,0.15);
+          border: 2px solid rgba(255,255,255,0.25);
+        "><svg viewBox="0 0 24 24" style="position:absolute;top:50%;left:50%;width:40%;height:40%;transform:translate(-50%,-50%);opacity:0.45;fill:rgba(0,0,0,0.5);" xmlns="http://www.w3.org/2000/svg"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zM9 8V6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9z"/></svg></div>`;
       }
 
       gridEl.appendChild(cell);
@@ -3926,13 +3931,13 @@ buildCategoryTabs();  // 👈 catégories du builder !
   });
 
 
-  // Désactiver le Service Worker et vider les caches pour éviter les conflits
+  // Enregistrement du Service Worker pour PWA
   if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.getRegistrations().then(regs => {
-      regs.forEach(reg => reg.unregister());
-    });
-    caches.keys().then(keys => {
-      keys.forEach(key => caches.delete(key));
+    window.addEventListener("load", () => {
+      navigator.serviceWorker
+        .register("/sw.js") /* navigator.serviceWorker.register('/sw.js'); */
+
+        .catch(err => console.warn("SW registration failed", err));
     });
   }
 </script>
