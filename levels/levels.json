@@ -5,8 +5,8 @@
       "name": "Kawaii",
       "emoji": "🌸",
       "levels": [
-        { "id": "kawaii_imagevb", "title": "Image" }
-        { "id": "kawaii_imageER", "title": "ER" }
+        { "id": "kawaii_imagevb", "title": "Image" },
+        { "id": "kawaii_imageER", "title": "ER" },
         { "id": "kawaii_imageERR", "title": "ERR" }
       ]
     }
