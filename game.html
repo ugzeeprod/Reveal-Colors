@@ -9,13 +9,13 @@
   <meta name="theme-color" content="#fbe9f0" />
 
   <!-- PWA / manifest -->
-  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="manifest" href="manifest.webmanifest">
 
   <!-- iOS PWA -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Reveal Colors">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
 
   <style>
 
@@ -1625,6 +1625,9 @@ html, body {
 
 <script>
 
+// ================= BASE PATH (GitHub Pages) ==================
+const BASE_PATH = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
+
 // ================= IndexedDB Helper + Compression ==================
 
 const DB_NAME = "RevealColorsDB";
@@ -1882,7 +1885,7 @@ async function saveLevelProgressData(payload) {
   // =========================
   async function loadLevelsConfig() {
     try {
-      const res = await fetch("./levels/levels.json");
+      const res = await fetch(BASE_PATH + "levels/levels.json");
       if (!res.ok) throw new Error("HTTP "+res.status);
       const data = await res.json();
       if (!data.collections) data.collections=[];
@@ -2094,7 +2097,7 @@ async function drawLevelThumbnail(canvas, collectionId, levelId) {
     // reset
     canvas.width = canvas.width;
 
-    const base = `./levels/${levelId}`;
+    const base = BASE_PATH + `levels/${levelId}`;
     const levelRes = await fetch(base + ".json");
     const levelData = await levelRes.json();
     const palette = levelData.palette;
@@ -2403,7 +2406,7 @@ function setupCanvasForGrid() {
 
   async function loadLevelDataFromServer(collectionId, levelId) {
     try {
-      const base = `./levels/${levelId}`;
+      const base = BASE_PATH + `levels/${levelId}`;
       const res = await fetch(base + ".json");
       if (!res.ok) {
         throw new Error("Erreur chargement fichier de niveau");
@@ -2416,10 +2419,8 @@ function setupCanvasForGrid() {
       // Charger la gameGrid si disponible
       currentGame.gameGrid = null;
       if (levelData.gameGrid) {
-        try { 
-          currentGame.gameGrid = levelData.gameGrid;
-          console.log('gameGrid chargée:', currentGame.gameGrid?.length, 'rows x', currentGame.gameGrid?.[0]?.length, 'cols');
-        } catch(e) { console.warn('gameGrid parse error:', e); }
+        currentGame.gameGrid = levelData.gameGrid;
+        console.log('gameGrid chargée:', currentGame.gameGrid?.length, 'rows x', currentGame.gameGrid?.[0]?.length, 'cols');
       } else {
         console.log('Pas de gameGrid trouvée — génération aléatoire');
       }
@@ -3228,15 +3229,15 @@ function bjRenderGrid() {
         cell.addEventListener('mouseleave', () => cell.style.transform = `scale(1)`);
 
       } else {
-        // Pastille bloquée — plus sombre, moins saturée
+        // Pastille bloquée — couleur visible + léger assombrissement
         const color = bjColorFromPalette(ci);
-        cell.style.cssText = base + `border-radius:50%;opacity:0.45;`;
+        const shadowColor = color.replace('rgb(', 'rgba(').replace(')', ',0.35)');
+        cell.style.cssText = base + `border-radius:50%;opacity:0.82;`;
         cell.innerHTML = `<div style="
           width:100%;height:100%;border-radius:50%;
           background:${bjMake3DColor(color)};
-          box-shadow: 0 2px 0 rgba(0,0,0,0.2);
+          box-shadow: 0 ${Math.round(sz*0.06)}px 0 ${shadowColor};
           border: 2px solid rgba(255,255,255,0.2);
-          filter: saturate(0.6);
         "></div>`;
       }
 
@@ -3924,15 +3925,8 @@ buildCategoryTabs();  // 👈 catégories du builder !
   });
 
 
-  // Enregistrement du Service Worker pour PWA
-  if ("serviceWorker" in navigator) {
-    window.addEventListener("load", () => {
-      navigator.serviceWorker
-        .register("./sw.js") /* navigator.serviceWorker.register('./sw.js'); */
-
-        .catch(err => console.warn("SW registration failed", err));
-    });
-  }
+  // Service Worker désactivé (pas de sw.js sur GitHub Pages)
+  // if ("serviceWorker" in navigator) { ... }
 </script>
 
 <!-- Sons UI & scratch -->
