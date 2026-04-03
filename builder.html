@@ -5,7 +5,6 @@
 <meta charset="UTF-8">
 <title>Scratch by Number – Builder PRO</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<script src="idb.js"></script>
 
 <style>
 * {
@@ -506,17 +505,14 @@ input[type="range"] {
 
       </div>
 
-      <!-- EXPORT LEVEL JSON (pour GitHub Pages) -->
-      <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px;">
-        <button class="btn btnPrimary" id="btnExportLevel">
-          💾 Exporter level.json
-        </button>
-        <button class="btn btnSecondary" id="btnPublishGame">
-          📦 Sauvegarder (local)
+      <!-- 🔥 NOUVEAU : bouton Publier dans le jeu -->
+      <div style="margin-top:10px;">
+        <button class="btn btnPrimary" id="btnPublishGame">
+          🚀 Publier dans le jeu
         </button>
       </div>
 
-      <div class="smallTag">Exporte le .json → mets-le dans <code>/levels/</code> sur GitHub.</div>
+      <div class="smallTag">Tu pourras ensuite déposer ces fichiers dans /levels/<em>catégorie</em>/ de ton jeu.</div>
 
       <label style="margin-top:10px;">Entrée à coller dans levels.json</label>
       <textarea id="levelsSnippet" readonly></textarea>
@@ -637,7 +633,6 @@ input[type="range"] {
 
 </div><!-- fin #app -->
 
-<script src="idb.js"></script>
 <script>
 // ========= ÉTAT GLOBAL =========
 let originalImg = null;
@@ -1211,49 +1206,7 @@ btnCopySnippet.addEventListener("click", () => {
   document.execCommand("copy");
 });
 
-// ========= PUBLICATION DANS LE JEU (via serveur Node) =========
-// ========= EXPORT LEVEL JSON (pour GitHub Pages) =========
-document.getElementById('btnExportLevel').addEventListener('click', () => {
-  if (!LEVEL.length || !COLOR_PALETTE.length) {
-    alert("Génère d'abord une grille (image + couleurs).");
-    return;
-  }
-
-  const meta = buildMeta();
-
-  let gameGrid = null;
-  if (GJ_GRID && GJ_GRID.length > 0 && GJ_ROWS > 0 && GJ_COLS > 0) {
-    gameGrid = [];
-    for (let r = 0; r < GJ_ROWS; r++) {
-      const row = [];
-      for (let c = 0; c < GJ_COLS; c++) row.push(GJ_GRID[r * GJ_COLS + c]);
-      gameGrid.push(row);
-    }
-  }
-
-  const imageBase64 = resizedCanvas.toDataURL('image/jpeg', 0.82);
-
-  const levelJson = {
-    meta,
-    palette: COLOR_PALETTE,
-    grid: LEVEL,
-    gameGrid: gameGrid || null,
-    imageBase64
-  };
-
-  const blob = new Blob([JSON.stringify(levelJson)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${meta.id}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-
-  // Mettre à jour le snippet levels.json
-  buildLevelsSnippet();
-  alert(`Fichier "${meta.id}.json" téléchargé !\n\nMets-le dans /levels/ sur GitHub, puis ajoute l'entrée dans levels.json.`);
-});
-
+// ========= PUBLICATION — Export fichier JSON combiné (pour GitHub Pages) =========
 const btnPublishGame = document.getElementById("btnPublishGame");
 
 btnPublishGame.addEventListener("click", async () => {
@@ -1266,6 +1219,7 @@ btnPublishGame.addEventListener("click", async () => {
   const grid = LEVEL;
   const palette = COLOR_PALETTE;
 
+  // Construire la gameGrid depuis GJ_GRID si disponible
   let gameGrid = null;
   if (GJ_GRID && GJ_GRID.length > 0 && GJ_ROWS > 0 && GJ_COLS > 0) {
     gameGrid = [];
@@ -1276,22 +1230,13 @@ btnPublishGame.addEventListener("click", async () => {
     }
   }
 
-  // Image en base64 JPEG pour économiser l'espace IndexedDB
-  const imageBase64 = resizedCanvas.toDataURL('image/jpeg', 0.85);
+  const payload = { meta, grid, palette, gameGrid };
+  const filename = meta.id + ".json";
 
-  btnPublishGame.textContent = '⏳ Publication...';
-  btnPublishGame.disabled = true;
+  // Télécharger le fichier JSON combiné
+  downloadJSON(payload, filename);
 
-  try {
-    await rcPublishLevel({ meta, grid, palette, gameGrid, imageBase64 });
-    alert("Niveau publié ! 🎉" + (gameGrid ? "\nGrille de jeu incluse ✅" : ""));
-  } catch(e) {
-    console.error(e);
-    alert("Erreur lors de la publication : " + e.message);
-  } finally {
-    btnPublishGame.textContent = '🚀 Publier dans le jeu';
-    btnPublishGame.disabled = false;
-  }
+  alert("Fichier téléchargé : " + filename + "\n\n📋 Étapes suivantes :\n1. Upload ce fichier dans levels/ sur GitHub\n2. Ajoute l'entrée dans levels/levels.json\n3. Commit & push !");
 });
 
 // init de l’ID si titre vide

@@ -9,7 +9,7 @@
   <meta name="theme-color" content="#fbe9f0" />
 
   <!-- PWA / manifest -->
-  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="manifest" href="./manifest.webmanifest">
 
   <!-- iOS PWA -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1882,7 +1882,7 @@ async function saveLevelProgressData(payload) {
   // =========================
   async function loadLevelsConfig() {
     try {
-      const res = await fetch("/levels/levels.json");
+      const res = await fetch("./levels/levels.json");
       if (!res.ok) throw new Error("HTTP "+res.status);
       const data = await res.json();
       if (!data.collections) data.collections=[];
@@ -2094,14 +2094,11 @@ async function drawLevelThumbnail(canvas, collectionId, levelId) {
     // reset
     canvas.width = canvas.width;
 
-    const base = `/levels/${collectionId}/${levelId}`;
-    const [paletteRes, gridRes] = await Promise.all([
-      fetch(base + "_palette.json"),
-      fetch(base + "_grid.json")
-    ]);
-
-    const palette = await paletteRes.json();
-    const baseGrid = await gridRes.json();
+    const base = `./levels/${levelId}`;
+    const levelRes = await fetch(base + ".json");
+    const levelData = await levelRes.json();
+    const palette = levelData.palette;
+    const baseGrid = levelData.grid;
 
     const saved = await loadLevelProgressData(collectionId, levelId);
 
@@ -2406,25 +2403,21 @@ function setupCanvasForGrid() {
 
   async function loadLevelDataFromServer(collectionId, levelId) {
     try {
-      const base = `/levels/${collectionId}/${levelId}`;
-      const [metaRes, paletteRes, gridRes, gameGridRes] = await Promise.all([
-        fetch(base + "_meta.json"),
-        fetch(base + "_palette.json"),
-        fetch(base + "_grid.json"),
-        fetch(base + "_gameGrid.json").catch(() => null),
-      ]);
-      if (!metaRes.ok || !paletteRes.ok || !gridRes.ok) {
-        throw new Error("Erreur chargement fichiers de niveau");
+      const base = `./levels/${levelId}`;
+      const res = await fetch(base + ".json");
+      if (!res.ok) {
+        throw new Error("Erreur chargement fichier de niveau");
       }
-      const meta = await metaRes.json();
-      const palette = await paletteRes.json();
-      const grid = await gridRes.json();
+      const levelData = await res.json();
+      const meta = levelData.meta;
+      const palette = levelData.palette;
+      const grid = levelData.grid;
 
       // Charger la gameGrid si disponible
       currentGame.gameGrid = null;
-      if (gameGridRes && gameGridRes.ok) {
+      if (levelData.gameGrid) {
         try { 
-          currentGame.gameGrid = await gameGridRes.json();
+          currentGame.gameGrid = levelData.gameGrid;
           console.log('gameGrid chargée:', currentGame.gameGrid?.length, 'rows x', currentGame.gameGrid?.[0]?.length, 'cols');
         } catch(e) { console.warn('gameGrid parse error:', e); }
       } else {
@@ -3235,16 +3228,16 @@ function bjRenderGrid() {
         cell.addEventListener('mouseleave', () => cell.style.transform = `scale(1)`);
 
       } else {
-        // Pastille bloquée — couleur visible + petit cadenas
+        // Pastille bloquée — plus sombre, moins saturée
         const color = bjColorFromPalette(ci);
-        const shadowColor = color.replace('rgb(', 'rgba(').replace(')', ',0.35)');
-        cell.style.cssText = base + `border-radius:50%;opacity:0.85;`;
+        cell.style.cssText = base + `border-radius:50%;opacity:0.45;`;
         cell.innerHTML = `<div style="
-          width:100%;height:100%;border-radius:50%;position:relative;
+          width:100%;height:100%;border-radius:50%;
           background:${bjMake3DColor(color)};
-          box-shadow: 0 ${Math.round(sz*0.08)}px 0 ${shadowColor}, 0 2px 4px rgba(0,0,0,0.15);
-          border: 2px solid rgba(255,255,255,0.25);
-        "><svg viewBox="0 0 24 24" style="position:absolute;top:50%;left:50%;width:40%;height:40%;transform:translate(-50%,-50%);opacity:0.45;fill:rgba(0,0,0,0.5);" xmlns="http://www.w3.org/2000/svg"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zM9 8V6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9z"/></svg></div>`;
+          box-shadow: 0 2px 0 rgba(0,0,0,0.2);
+          border: 2px solid rgba(255,255,255,0.2);
+          filter: saturate(0.6);
+        "></div>`;
       }
 
       gridEl.appendChild(cell);
@@ -3935,7 +3928,7 @@ buildCategoryTabs();  // 👈 catégories du builder !
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
       navigator.serviceWorker
-        .register("/sw.js") /* navigator.serviceWorker.register('/sw.js'); */
+        .register("./sw.js") /* navigator.serviceWorker.register('./sw.js'); */
 
         .catch(err => console.warn("SW registration failed", err));
     });
