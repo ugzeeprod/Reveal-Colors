@@ -3481,14 +3481,17 @@ let conveyorFiring = false;
 const CANNON_WIDTH = 38;
 const CANNON_GAP = 8;
 
+let _cannonCanvasSized = false;
 function conveyorResizeCanvas() {
   const c = document.getElementById('cannonCanvas');
   if (!c) return null;
-  const rect = c.getBoundingClientRect();
-  const dpr = window.devicePixelRatio || 1;
-  const w = Math.round(rect.width * dpr);
-  const h = Math.round(rect.height * dpr);
-  if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
+  if (!_cannonCanvasSized) {
+    const rect = c.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    c.width = Math.round(rect.width * dpr);
+    c.height = Math.round(rect.height * dpr);
+    _cannonCanvasSized = true;
+  }
   return c;
 }
 
@@ -3500,8 +3503,7 @@ function conveyorInitCannons() {
     if ((currentGame.remainingPerColor[idx] || 0) > 0) colors.push(idx);
   });
   // Positionner les canons centrés sur le tapis
-  const c = document.getElementById('cannonCanvas');
-  const beltW = c ? c.getBoundingClientRect().width : 400;
+  const beltW = _cachedBeltW;
   const totalW = colors.length * (CANNON_WIDTH + CANNON_GAP) - CANNON_GAP;
   const startX = (beltW - totalW) / 2 + CANNON_WIDTH / 2;
 
@@ -3586,9 +3588,7 @@ function conveyorDraw() {
 
 function conveyorTick() {
   // Les canons sont en file centrée (Bus Jam style)
-  // Recalculer les positions cibles pour centrer et combler les trous
-  const c = document.getElementById('cannonCanvas');
-  const beltW = c ? c.getBoundingClientRect().width : 400;
+  const beltW = _cachedBeltW;
   const alive = conveyorCannons.filter(cn => !cn.dead);
   const totalW = alive.length * (CANNON_WIDTH + CANNON_GAP) - (alive.length > 0 ? CANNON_GAP : 0);
   const startX = (beltW - totalW) / 2 + CANNON_WIDTH / 2;
@@ -3607,10 +3607,16 @@ function conveyorTick() {
   conveyorAnimId = requestAnimationFrame(conveyorTick);
 }
 
+let _cachedBeltW = 400;
+
 function cannonStart() {
+  _cannonCanvasSized = false; // force resize au prochain draw
   conveyorInitCannons();
   if (conveyorAnimId) cancelAnimationFrame(conveyorAnimId);
   conveyorFiring = false;
+  // Cache la largeur du tapis
+  const c = document.getElementById('cannonCanvas');
+  if (c) _cachedBeltW = c.getBoundingClientRect().width;
   conveyorTick();
 }
 
@@ -3644,7 +3650,7 @@ function cannonFireAtCells(cells, colorRGB, onAllLanded) {
   const startTime = performance.now();
   let revealedIdx = 0;
   const activeJets = [];
-  const beltW = document.getElementById('cannonCanvas')?.getBoundingClientRect().width || 400;
+  const beltW = _cachedBeltW;
 
   function getCannonImageX() {
     return (firingCannon.x / beltW) * gameCanvas.width;
