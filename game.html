@@ -3473,325 +3473,251 @@ function bjSetMsg(t) {
 }
 
 // ==========================================
-// 🔫 CANNON ON CONVEYOR BELT
+// 🔫 MULTI-CANNON CONVEYOR BELT (Bus Jam style)
 // ==========================================
-let cannonX = 0.5;       // position normalisée 0..1
-let cannonDir = 1;        // direction: 1=droite, -1=gauche
-let cannonSpeed = 0.012;  // vitesse de déplacement
-let cannonMoving = false; // ne bouge que pendant distribution
-let cannonAnimId = null;
-let cannonFiring = false;
+let conveyorSpeed = 0.4;
+let conveyorAnimId = null;
+let conveyorCannons = [];
+let conveyorFiring = false;
+const CANNON_WIDTH = 44;
+const CANNON_GAP = 12;
 
-function cannonResizeCanvas() {
+function conveyorResizeCanvas() {
   const c = document.getElementById('cannonCanvas');
   if (!c) return null;
   const rect = c.getBoundingClientRect();
   const dpr = window.devicePixelRatio || 1;
   const w = Math.round(rect.width * dpr);
   const h = Math.round(rect.height * dpr);
-  if (c.width !== w || c.height !== h) {
-    c.width = w;
-    c.height = h;
-  }
+  if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
   return c;
 }
 
-function cannonDraw() {
-  const c = cannonResizeCanvas();
+function conveyorInitCannons() {
+  conveyorCannons = [];
+  if (!currentGame.palette) return;
+  const colors = [];
+  currentGame.palette.forEach((col, idx) => {
+    if ((currentGame.remainingPerColor[idx] || 0) > 0) colors.push(idx);
+  });
+  colors.forEach((ci, i) => {
+    const col = currentGame.palette[ci];
+    conveyorCannons.push({
+      colorIndex: ci,
+      x: i * (CANNON_WIDTH + CANNON_GAP),
+      colorRGB: `rgb(${col.r},${col.g},${col.b})`,
+      colorR: col.r, colorG: col.g, colorB: col.b,
+      firing: false, dead: false, _fireDir: 1
+    });
+  });
+}
+
+function conveyorDraw() {
+  const c = conveyorResizeCanvas();
   if (!c) return;
   const ctx = c.getContext('2d');
-  const W = c.width;
-  const H = c.height;
+  const W = c.width; const H = c.height;
+  const dpr = window.devicePixelRatio || 1;
   ctx.clearRect(0, 0, W, H);
 
-  // Tapis roulant (fond)
+  // Tapis
   ctx.fillStyle = '#d0d5e3';
-  ctx.beginPath();
-  ctx.roundRect(0, 0, W, H, H * 0.3);
-  ctx.fill();
+  ctx.beginPath(); ctx.roundRect(0, 0, W, H, H * 0.25); ctx.fill();
 
-  // Rails
-  ctx.strokeStyle = 'rgba(0,0,0,0.1)';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(H * 0.3, H * 0.75);
-  ctx.lineTo(W - H * 0.3, H * 0.75);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(H * 0.3, H * 0.85);
-  ctx.lineTo(W - H * 0.3, H * 0.85);
-  ctx.stroke();
-
-  // Rayures du tapis (bougent quand cannonMoving)
+  // Rayures animées
   ctx.save();
-  ctx.beginPath();
-  ctx.roundRect(0, 0, W, H, H * 0.3);
-  ctx.clip();
-  const stripeW = 14;
-  const offset = cannonMoving ? (Date.now() * 0.08 * cannonDir) % stripeW : 0;
-  ctx.strokeStyle = 'rgba(255,255,255,0.18)';
-  ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.roundRect(0, 0, W, H, H * 0.25); ctx.clip();
+  const stripeW = 14 * dpr;
+  const offset = (Date.now() * 0.06) % stripeW;
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+  ctx.lineWidth = 2 * dpr;
   for (let x = -stripeW + offset; x < W + stripeW; x += stripeW) {
-    ctx.beginPath();
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x + 6, H);
-    ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x + 6 * dpr, H); ctx.stroke();
   }
   ctx.restore();
 
-  // Canon — position
-  const margin = H * 1.5;
-  const cx = margin + cannonX * (W - margin * 2);
-  const cy = H * 0.45;
-  const bodyW = H * 0.8;
-  const bodyH = H * 0.55;
+  // Rails
+  ctx.strokeStyle = 'rgba(0,0,0,0.08)';
+  ctx.lineWidth = 1.5 * dpr;
+  ctx.beginPath(); ctx.moveTo(0, H * 0.78); ctx.lineTo(W, H * 0.78); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, H * 0.88); ctx.lineTo(W, H * 0.88); ctx.stroke();
 
-  // Ombre
-  ctx.fillStyle = 'rgba(0,0,0,0.12)';
-  ctx.beginPath();
-  ctx.ellipse(cx, H * 0.88, bodyW * 0.5, H * 0.08, 0, 0, Math.PI * 2);
-  ctx.fill();
+  // Canons
+  const cw = CANNON_WIDTH * dpr;
+  const ch = H * 0.6;
 
-  // Roues
-  const wheelR = H * 0.1;
-  ctx.fillStyle = '#444';
-  ctx.beginPath(); ctx.arc(cx - bodyW * 0.3, H * 0.78, wheelR, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc(cx + bodyW * 0.3, H * 0.78, wheelR, 0, Math.PI * 2); ctx.fill();
+  conveyorCannons.forEach(cannon => {
+    if (cannon.dead) return;
+    const cx = cannon.x * dpr;
+    const cy = H * 0.35;
+    const r = cannon.colorR, g = cannon.colorG, b = cannon.colorB;
 
-  // Corps
-  const bg = ctx.createLinearGradient(cx, cy - bodyH/2, cx, cy + bodyH/2);
-  bg.addColorStop(0, '#7b86d9');
-  bg.addColorStop(0.5, '#5560b3');
-  bg.addColorStop(1, '#3d4590');
-  ctx.fillStyle = bg;
-  ctx.beginPath();
-  ctx.roundRect(cx - bodyW/2, cy - bodyH/2, bodyW, bodyH, bodyH * 0.25);
-  ctx.fill();
+    // Ombre
+    ctx.fillStyle = 'rgba(0,0,0,0.1)';
+    ctx.beginPath(); ctx.ellipse(cx, H * 0.88, cw * 0.45, H * 0.05, 0, 0, Math.PI * 2); ctx.fill();
 
-  // Highlight
-  ctx.fillStyle = 'rgba(255,255,255,0.3)';
-  ctx.beginPath();
-  ctx.roundRect(cx - bodyW/2 + 4, cy - bodyH/2 + 2, bodyW - 8, bodyH * 0.3, 4);
-  ctx.fill();
+    // Roues
+    ctx.fillStyle = '#555';
+    ctx.beginPath(); ctx.arc(cx - cw * 0.25, H * 0.82, H * 0.07, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(cx + cw * 0.25, H * 0.82, H * 0.07, 0, Math.PI * 2); ctx.fill();
 
-  // Tube (pointe vers le haut)
-  const tubeW = bodyW * 0.28;
-  const tubeH = bodyH * 0.7;
-  ctx.fillStyle = '#3d4590';
-  ctx.beginPath();
-  ctx.roundRect(cx - tubeW/2, cy - bodyH/2 - tubeH + 6, tubeW, tubeH, [tubeW * 0.3, tubeW * 0.3, 0, 0]);
-  ctx.fill();
+    // Corps coloré
+    const bg = ctx.createLinearGradient(cx, cy - ch/2, cx, cy + ch/2);
+    bg.addColorStop(0, `rgb(${Math.min(255,r+60)},${Math.min(255,g+60)},${Math.min(255,b+60)})`);
+    bg.addColorStop(0.5, `rgb(${r},${g},${b})`);
+    bg.addColorStop(1, `rgb(${Math.max(0,r-40)},${Math.max(0,g-40)},${Math.max(0,b-40)})`);
+    ctx.fillStyle = bg;
+    ctx.beginPath(); ctx.roundRect(cx - cw/2, cy - ch/2, cw, ch, cw * 0.2); ctx.fill();
 
-  // Bouche
-  ctx.fillStyle = '#222';
-  ctx.beginPath();
-  ctx.ellipse(cx, cy - bodyH/2 - tubeH + 8, tubeW * 0.35, tubeW * 0.25, 0, 0, Math.PI * 2);
-  ctx.fill();
+    // Highlight
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.beginPath(); ctx.roundRect(cx - cw/2 + 3*dpr, cy - ch/2 + 2*dpr, cw - 6*dpr, ch * 0.3, 3*dpr); ctx.fill();
 
-  // Flash quand tir
-  if (cannonFiring) {
-    const flashR = tubeW * 0.6 + Math.random() * tubeW * 0.3;
-    ctx.fillStyle = `rgba(255, 220, 80, ${0.5 + Math.random() * 0.3})`;
-    ctx.beginPath();
-    ctx.arc(cx, cy - bodyH/2 - tubeH + 4, flashR, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = `rgba(255, 255, 255, ${0.3 + Math.random() * 0.2})`;
-    ctx.beginPath();
-    ctx.arc(cx, cy - bodyH/2 - tubeH + 4, flashR * 0.5, 0, Math.PI * 2);
-    ctx.fill();
-  }
+    // Tube
+    const tubeW = cw * 0.3; const tubeH = ch * 0.55;
+    ctx.fillStyle = `rgb(${Math.max(0,r-50)},${Math.max(0,g-50)},${Math.max(0,b-50)})`;
+    ctx.beginPath(); ctx.roundRect(cx - tubeW/2, cy - ch/2 - tubeH + 4*dpr, tubeW, tubeH, [tubeW*0.3, tubeW*0.3, 0, 0]); ctx.fill();
+
+    // Bouche
+    ctx.fillStyle = '#222';
+    ctx.beginPath(); ctx.ellipse(cx, cy - ch/2 - tubeH + 6*dpr, tubeW * 0.3, tubeW * 0.2, 0, 0, Math.PI * 2); ctx.fill();
+
+    // Flash si tir
+    if (cannon.firing) {
+      const flashR = tubeW * 0.7 + Math.random() * tubeW * 0.3;
+      ctx.fillStyle = `rgba(255,230,100,${0.5+Math.random()*0.3})`;
+      ctx.beginPath(); ctx.arc(cx, cy - ch/2 - tubeH + 3*dpr, flashR, 0, Math.PI * 2); ctx.fill();
+    }
+  });
 }
 
-function cannonTick() {
-  if (cannonMoving) {
-    cannonX += cannonSpeed * cannonDir;
-    if (cannonX >= 1) { cannonX = 1; cannonDir = -1; }
-    if (cannonX <= 0) { cannonX = 0; cannonDir = 1; }
-  }
-  cannonDraw();
-  if (cannonMoving || cannonFiring) {
-    cannonAnimId = requestAnimationFrame(cannonTick);
-  } else {
-    cannonAnimId = null;
-  }
-}
+function conveyorTick() {
+  const c = document.getElementById('cannonCanvas');
+  if (!c) return;
+  const W = c.getBoundingClientRect().width;
 
-function cannonEnsureRunning() {
-  if (!cannonAnimId) {
-    cannonAnimId = requestAnimationFrame(cannonTick);
-  }
+  conveyorCannons.forEach(cannon => {
+    if (cannon.dead || cannon.firing) return;
+    cannon.x += conveyorSpeed;
+    if (cannon.x > W + CANNON_WIDTH) cannon.x = -CANNON_WIDTH;
+  });
+
+  conveyorDraw();
+  conveyorAnimId = requestAnimationFrame(conveyorTick);
 }
 
 function cannonStart() {
-  if (cannonAnimId) cancelAnimationFrame(cannonAnimId);
-  cannonAnimId = null;
-  cannonX = 0.5;
-  cannonDir = 1;
-  cannonMoving = false;
-  cannonFiring = false;
-  // Dessiner une seule frame statique
-  requestAnimationFrame(() => cannonDraw());
+  conveyorInitCannons();
+  if (conveyorAnimId) cancelAnimationFrame(conveyorAnimId);
+  conveyorFiring = false;
+  conveyorTick();
 }
 
 function cannonStop() {
-  if (cannonAnimId) {
-    cancelAnimationFrame(cannonAnimId);
-    cannonAnimId = null;
-  }
+  if (conveyorAnimId) { cancelAnimationFrame(conveyorAnimId); conveyorAnimId = null; }
 }
 
-// Fire projectiles from cannon to target cells on image
 function cannonFireAtCells(cells, colorRGB, onAllLanded) {
   if (!cells.length) { onAllLanded(); return; }
+
+  // Trouver le canon de cette couleur
+  let firingCannon = conveyorCannons.find(c => !c.dead && c.colorRGB === colorRGB);
+  if (!firingCannon) firingCannon = conveyorCannons.find(c => !c.dead);
+  if (!firingCannon) { onAllLanded(); return; }
+
+  firingCannon.firing = true;
+  firingCannon._fireDir = 1;
 
   const cellW = gameCanvas.width / currentGame.gridW;
   const cellH = gameCanvas.height / currentGame.gridH;
   const revealR = Math.min(cellW, cellH) * 0.85;
 
-  // Start cannon moving & firing
-  cannonMoving = true;
-  cannonFiring = true;
-  cannonEnsureRunning();
-
   const particleCanvas = document.getElementById('gameCanvasParticles');
-  if (!particleCanvas) { cannonMoving = false; cannonFiring = false; onAllLanded(); return; }
+  if (!particleCanvas) { firingCannon.firing = false; onAllLanded(); return; }
   particleCanvas.width = gameCanvas.width;
   particleCanvas.height = gameCanvas.height;
   const ctxP = particleCanvas.getContext('2d');
 
-  // === Trier les cellules par position X pour que le canon les "peigne" ===
-  // Le canon fait des allers-retours, on trie par sweeps
   const sorted = [...cells].sort((a, b) => a.cx - b.cx);
-  
-  const TOTAL_DURATION = 3000; // 3 secondes
+  const TOTAL_DURATION = 3000;
   const startTime = performance.now();
   let revealedIdx = 0;
-
-  // Particules visuelles actives (jets du canon)
   const activeJets = [];
+  const beltW = document.getElementById('cannonCanvas')?.getBoundingClientRect().width || 400;
+
+  function getCannonImageX() {
+    return (firingCannon.x / beltW) * gameCanvas.width;
+  }
 
   function animate(ts) {
     const elapsed = ts - startTime;
     const progress = Math.min(elapsed / TOTAL_DURATION, 1);
 
-    // Position actuelle du canon (normalisée 0..1)
-    const cannonPosX = cannonX;
-    const cannonPixelX = cannonPosX * gameCanvas.width;
+    // Canon va-et-vient pendant le tir
+    firingCannon.x += conveyorSpeed * 2 * firingCannon._fireDir;
+    if (firingCannon.x > beltW - CANNON_WIDTH) firingCannon._fireDir = -1;
+    if (firingCannon.x < CANNON_WIDTH) firingCannon._fireDir = 1;
 
-    // Révéler les cellules proches de la position du canon
-    // On révèle proportionnellement au temps, mais seulement celles 
-    // dont le X est proche du canon actuel (± tolérance)
+    const cannonImgX = getCannonImageX();
     const totalToReveal = Math.floor(progress * sorted.length);
-    const tolerance = gameCanvas.width * 0.15; // zone de dépôt autour du canon
 
     while (revealedIdx < totalToReveal && revealedIdx < sorted.length) {
-      // Trouver la prochaine cellule la plus proche du canon
-      let bestIdx = -1;
-      let bestDist = Infinity;
-      for (let i = revealedIdx; i < Math.min(revealedIdx + 20, sorted.length); i++) {
-        const dist = Math.abs(sorted[i].cx - cannonPixelX);
-        if (dist < bestDist) {
-          bestDist = dist;
-          bestIdx = i;
-        }
+      let bestIdx = revealedIdx; let bestDist = Infinity;
+      for (let i = revealedIdx; i < Math.min(revealedIdx + 15, sorted.length); i++) {
+        const dist = Math.abs(sorted[i].cx - cannonImgX);
+        if (dist < bestDist) { bestDist = dist; bestIdx = i; }
       }
-      if (bestIdx > revealedIdx) {
-        // Swap pour révéler la plus proche en premier
-        [sorted[revealedIdx], sorted[bestIdx]] = [sorted[bestIdx], sorted[revealedIdx]];
-      }
+      if (bestIdx !== revealedIdx) [sorted[revealedIdx], sorted[bestIdx]] = [sorted[bestIdx], sorted[revealedIdx]];
 
       const cell = sorted[revealedIdx];
       ctxScratch.globalCompositeOperation = 'destination-out';
-      ctxScratch.beginPath();
-      ctxScratch.arc(cell.cx, cell.cy, revealR, 0, Math.PI * 2);
-      ctxScratch.fill();
+      ctxScratch.beginPath(); ctxScratch.arc(cell.cx, cell.cy, revealR, 0, Math.PI * 2); ctxScratch.fill();
       ctxScratch.globalCompositeOperation = 'source-over';
-
-      // Ajouter un jet visuel pour cette cellule
-      activeJets.push({
-        targetX: cell.cx, targetY: cell.cy,
-        born: ts,
-        life: 300 // durée de vie du jet en ms
-      });
-
+      activeJets.push({ targetX: cell.cx, targetY: cell.cy, born: ts, life: 280 });
       revealedIdx++;
     }
 
-    // Dessiner les jets en vol
     ctxP.clearRect(0, 0, particleCanvas.width, particleCanvas.height);
 
     if (progress < 1) {
-      const cannonStartY = gameCanvas.height;
-
-      // Jets actifs
       for (let i = activeJets.length - 1; i >= 0; i--) {
         const jet = activeJets[i];
-        const jetAge = ts - jet.born;
-        const jetProgress = Math.min(jetAge / jet.life, 1);
+        const jp = Math.min((ts - jet.born) / jet.life, 1);
+        if (jp >= 1) { activeJets.splice(i, 1); continue; }
 
-        if (jetProgress >= 1) {
-          activeJets.splice(i, 1);
-          continue;
-        }
+        const jx = cannonImgX + (jet.targetX - cannonImgX) * jp;
+        const arcH = gameCanvas.height * 0.18 + Math.abs(cannonImgX - jet.targetX) * 0.08;
+        const jy = gameCanvas.height + (jet.targetY - gameCanvas.height) * jp - arcH * Math.sin(Math.PI * jp);
+        const size = 4 * (1 - jp * 0.4);
 
-        // Arc du canon vers la cible
-        const jx = cannonPixelX + (jet.targetX - cannonPixelX) * jetProgress;
-        const arcH = gameCanvas.height * 0.2 + Math.abs(cannonPixelX - jet.targetX) * 0.1;
-        const jy = cannonStartY + (jet.targetY - cannonStartY) * jetProgress - arcH * Math.sin(Math.PI * jetProgress);
-        const size = 4 * (1 - jetProgress * 0.5);
-
-        // Traînée
-        ctxP.globalAlpha = 0.2 * (1 - jetProgress);
+        ctxP.globalAlpha = 0.75 * (1 - jp * 0.5);
         ctxP.fillStyle = colorRGB;
-        const trailT = Math.max(0, jetProgress - 0.1);
-        const tx = cannonPixelX + (jet.targetX - cannonPixelX) * trailT;
-        const ty = cannonStartY + (jet.targetY - cannonStartY) * trailT - arcH * Math.sin(Math.PI * trailT);
-        ctxP.beginPath();
-        ctxP.arc(tx, ty, size * 0.4, 0, Math.PI * 2);
-        ctxP.fill();
+        ctxP.beginPath(); ctxP.arc(jx, jy, size, 0, Math.PI * 2); ctxP.fill();
 
-        // Particule
-        ctxP.globalAlpha = 0.8 * (1 - jetProgress * 0.6);
-        ctxP.fillStyle = colorRGB;
-        ctxP.beginPath();
-        ctxP.arc(jx, jy, size, 0, Math.PI * 2);
-        ctxP.fill();
-
-        // Impact flash
-        if (jetProgress > 0.8) {
-          ctxP.globalAlpha = 0.5 * (1 - jetProgress);
+        if (jp > 0.82) {
+          ctxP.globalAlpha = 0.4 * (1 - jp);
           ctxP.fillStyle = 'white';
-          ctxP.beginPath();
-          ctxP.arc(jet.targetX, jet.targetY, revealR * 0.6, 0, Math.PI * 2);
-          ctxP.fill();
+          ctxP.beginPath(); ctxP.arc(jet.targetX, jet.targetY, revealR * 0.5, 0, Math.PI * 2); ctxP.fill();
         }
       }
-
       ctxP.globalAlpha = 1;
       requestAnimationFrame(animate);
     } else {
-      // Révéler tout ce qui reste
       while (revealedIdx < sorted.length) {
         const cell = sorted[revealedIdx];
         ctxScratch.globalCompositeOperation = 'destination-out';
-        ctxScratch.beginPath();
-        ctxScratch.arc(cell.cx, cell.cy, revealR, 0, Math.PI * 2);
-        ctxScratch.fill();
+        ctxScratch.beginPath(); ctxScratch.arc(cell.cx, cell.cy, revealR, 0, Math.PI * 2); ctxScratch.fill();
         ctxScratch.globalCompositeOperation = 'source-over';
         revealedIdx++;
       }
-
       ctxP.clearRect(0, 0, particleCanvas.width, particleCanvas.height);
-      cannonFiring = false;
-      cannonMoving = false;
-      requestAnimationFrame(() => cannonDraw());
+      firingCannon.firing = false;
+      firingCannon.dead = true;
       onAllLanded();
     }
   }
 
-  setTimeout(() => {
-    requestAnimationFrame(animate);
-  }, 100);
+  setTimeout(() => requestAnimationFrame(animate), 100);
 }
 
 function bjInit() {
