@@ -115,6 +115,22 @@ canvas {
   touch-action: manipulation;
 }
 
+/* 🔥 iOS auto-zoom fix: force 16px minimum sur éléments interactifs */
+input, select, textarea, button {
+  font-size: 16px !important;
+}
+
+/* Empêcher le zoom iOS sur TOUS les éléments cliquables du jeu */
+#gameBottomZone, #gameBottomZone *, 
+#blockJamGrid, #blockJamGrid *,
+#waitZoneRow, #waitZoneRow *,
+#cannonCanvas,
+.gameCard, .gameCard * {
+  touch-action: manipulation !important;
+  -webkit-text-size-adjust: none;
+  text-size-adjust: none;
+}
+
     * { box-sizing: border-box; }
     html, body {
       margin: 0;
@@ -1617,7 +1633,7 @@ html, body {
           <!-- GAME OVER OVERLAY -->
           <div id="bjGameOver" style="display:none;flex-direction:column;align-items:center;gap:8px;padding:8px;">
             <div style="font-size:15px;font-weight:600;color:#e24b4a;">Zone pleine — game over !</div>
-            <button id="bjRestartBtn" style="padding:8px 20px;border-radius:999px;border:none;background:#ff7ac4;color:white;font-weight:600;font-size:14px;cursor:pointer;">Recommencer</button>
+            <button id="bjRestartBtn" style="padding:8px 20px;border-radius:999px;border:none;background:#ff7ac4;color:white;font-weight:600;font-size:16px;cursor:pointer;">Recommencer</button>
           </div>
 
         </div>
