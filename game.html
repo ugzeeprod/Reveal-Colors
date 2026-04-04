@@ -2593,59 +2593,13 @@ document.getElementById("colorsTotal").textContent = totalColors;
   gameCanvasScratch.style.touchAction = "none";
 
   gameCanvasScratch.addEventListener("pointerdown", (e)=>{
-    // Gestion des pointeurs tactiles pour pinch/pan
-    if (e.pointerType === "touch") {
-      activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-
-      if (activePointers.size === 2) {
-        const pts = Array.from(activePointers.values());
-        pinchStartDist = distance(pts[0], pts[1]);
-        pinchStartZoom = zoom;
-        isPinching = true;
-      } else if (zoom > 1 && !isPinching) {
-        isPanning = true;
-        lastPanX = e.clientX;
-        lastPanY = e.clientY;
-        e.preventDefault();
-        return;
-      }
-    }
-    if (isPinching) { e.preventDefault(); return; }
-    // Plus de scratch manuel : on ne fait rien ici
+    // Zoom/pan désactivé en mode Block Jam — on ne fait rien
     e.preventDefault();
   });
 
   gameCanvasScratch.addEventListener("pointermove", (e)=>{
-    // mise à jour des positions pour le pinch
-    if (e.pointerType === "touch" && activePointers.has(e.pointerId)) {
-      activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    }
-
-    // PINCH à 2 doigts (mobile)
-    if (isPinching && activePointers.size === 2) {
-      const pts = Array.from(activePointers.values());
-      const distNow = distance(pts[0], pts[1]);
-      if (pinchStartDist > 0) {
-        const scale = distNow / pinchStartDist;
-        setZoom(pinchStartZoom * scale);
-      }
-      e.preventDefault();
-      return;
-    }
-
-    // PAN à 1 doigt quand zoom > 1
-    if (zoom > 1 && isPanning && !isPinching && e.pointerType === "touch") {
-      const dx = e.clientX - lastPanX;
-      const dy = e.clientY - lastPanY;
-      panX += dx;
-      panY += dy;
-      applyZoom();
-      lastPanX = e.clientX;
-      lastPanY = e.clientY;
-      e.preventDefault();
-      return;
-    }
-    // Plus de scratch manuel
+    // Pas de scratch ni de zoom
+    e.preventDefault();
   });
 
   window.addEventListener("pointerup", (e)=>{
@@ -3695,6 +3649,32 @@ function cannonFireAtCells(cells, colorRGB, onAllLanded) {
   const cellW = gameCanvas.width / currentGame.gridW;
   const cellH = gameCanvas.height / currentGame.gridH;
 
+  // === BATCHING : max 12 projectiles visibles, le reste groupé ===
+  const MAX_PROJECTILES = 12;
+  let visibleCells, batchedCells;
+  
+  if (cells.length <= MAX_PROJECTILES) {
+    visibleCells = cells;
+    batchedCells = [];
+  } else {
+    // Sélectionner des cellules réparties uniformément pour les projectiles visibles
+    visibleCells = [];
+    const step = cells.length / MAX_PROJECTILES;
+    for (let i = 0; i < MAX_PROJECTILES; i++) {
+      visibleCells.push(cells[Math.floor(i * step)]);
+    }
+    batchedCells = cells.filter(c => !visibleCells.includes(c));
+  }
+
+  // Révéler immédiatement les cellules groupées (pas de projectile)
+  batchedCells.forEach(cell => {
+    ctxScratch.globalCompositeOperation = 'destination-out';
+    ctxScratch.beginPath();
+    ctxScratch.arc(cell.cx, cell.cy, Math.min(cellW, cellH) * 0.85, 0, Math.PI * 2);
+    ctxScratch.fill();
+  });
+  ctxScratch.globalCompositeOperation = 'source-over';
+
   // Start cannon moving & firing
   cannonMoving = true;
   cannonFiring = true;
@@ -3706,18 +3686,19 @@ function cannonFireAtCells(cells, colorRGB, onAllLanded) {
   particleCanvas.height = gameCanvas.height;
   const ctxP = particleCanvas.getContext('2d');
 
-  const FIRE_INTERVAL = Math.max(30, Math.min(80, 600 / cells.length));
-  const FLY_DURATION = 450;
+  // Timing : total ~2s max
+  const TOTAL_FIRE_TIME = 1200; // ms pour tirer tous les projectiles
+  const FIRE_INTERVAL = Math.floor(TOTAL_FIRE_TIME / visibleCells.length);
+  const FLY_DURATION = 400;
   let firedCount = 0;
   const projectiles = [];
 
   function fireNext() {
-    if (firedCount >= cells.length) return;
-    const cell = cells[firedCount];
+    if (firedCount >= visibleCells.length) return;
+    const cell = visibleCells[firedCount];
 
-    // Point de départ = position actuelle du canon (en coordonnées du canvas image)
     const startX = cannonX * gameCanvas.width;
-    const startY = gameCanvas.height; // bas de l'image = haut du canon
+    const startY = gameCanvas.height;
 
     projectiles.push({
       startX, startY,
@@ -3728,13 +3709,10 @@ function cannonFireAtCells(cells, colorRGB, onAllLanded) {
     });
 
     firedCount++;
-    if (firedCount < cells.length) {
+    if (firedCount < visibleCells.length) {
       setTimeout(fireNext, FIRE_INTERVAL);
     } else {
-      // Dernier projectile tiré — arrêter le canon après qu'il atterrit
-      setTimeout(() => {
-        cannonFiring = false;
-      }, FLY_DURATION * 0.5);
+      setTimeout(() => { cannonFiring = false; }, FLY_DURATION * 0.4);
     }
   }
 
@@ -3749,7 +3727,6 @@ function cannonFireAtCells(cells, colorRGB, onAllLanded) {
 
       if (t < 1) {
         allDone = false;
-        // Trajectoire en arc parabolique
         const arcHeight = gameCanvas.height * 0.3 + Math.abs(p.startX - p.targetX) * 0.15;
         const px = p.startX + (p.targetX - p.startX) * t;
         const py = p.startY + (p.targetY - p.startY) * t - arcHeight * Math.sin(Math.PI * t);
@@ -3774,14 +3751,13 @@ function cannonFireAtCells(cells, colorRGB, onAllLanded) {
         ctxP.arc(px, py, size, 0, Math.PI * 2);
         ctxP.fill();
 
-        // Glow blanc
+        // Glow
         ctxP.globalAlpha = 0.4;
         ctxP.fillStyle = 'white';
         ctxP.beginPath();
         ctxP.arc(px, py, size * 0.5, 0, Math.PI * 2);
         ctxP.fill();
 
-        // Révéler le pixel à l'arrivée
         if (t > 0.88 && !p.done) {
           p.done = true;
           ctxScratch.globalCompositeOperation = 'destination-out';
@@ -3802,27 +3778,24 @@ function cannonFireAtCells(cells, colorRGB, onAllLanded) {
 
     ctxP.globalAlpha = 1;
 
-    const allFired = firedCount >= cells.length;
+    const allFired = firedCount >= visibleCells.length;
     const allLanded = projectiles.every(p => p.done);
 
     if (!allFired || !allLanded) {
       requestAnimationFrame(animProjectiles);
     } else {
-      // Tout est fini
       ctxP.clearRect(0, 0, particleCanvas.width, particleCanvas.height);
       cannonFiring = false;
       cannonMoving = false;
-      // Redessiner le canon statique
       requestAnimationFrame(() => cannonDraw());
       onAllLanded();
     }
   }
 
-  // Petit délai pour laisser le canon démarrer visuellement
   setTimeout(() => {
     fireNext();
     requestAnimationFrame(animProjectiles);
-  }, 150);
+  }, 100);
 }
 
 function bjInit() {
