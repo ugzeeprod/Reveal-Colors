@@ -9,13 +9,13 @@
   <meta name="theme-color" content="#fbe9f0" />
 
   <!-- PWA / manifest -->
-  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="manifest" href="./manifest.webmanifest">
 
   <!-- iOS PWA -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Reveal Colors">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
 
   <style>
 
@@ -1601,6 +1601,9 @@ html, body {
         <!-- ZONE BLOCK JAM -->
         <div id="gameBottomZone" style="width:100%;display:flex;flex-direction:column;align-items:center;gap:6px;padding:6px 0 4px;user-select:none;flex:1;min-height:0;overflow:hidden;">
 
+          <!-- CANON SUR TAPIS ROULANT -->
+          <canvas id="cannonCanvas" style="width:100%;height:40px;flex-shrink:0;border-radius:10px;"></canvas>
+
           <!-- ZONE D'ATTENTE -->
           <div id="waitZoneRow" style="display:flex;gap:6px;background:rgba(0,0,0,0.06);padding:6px 10px;border-radius:14px;justify-content:center;align-items:center;flex-shrink:0;"></div>
 
@@ -1624,9 +1627,6 @@ html, body {
 
 
 <script>
-
-// ================= BASE PATH (GitHub Pages) ==================
-const BASE_PATH = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
 
 // ================= IndexedDB Helper + Compression ==================
 
@@ -1885,7 +1885,7 @@ async function saveLevelProgressData(payload) {
   // =========================
   async function loadLevelsConfig() {
     try {
-      const res = await fetch(BASE_PATH + "levels/levels.json");
+      const res = await fetch("./levels/levels.json");
       if (!res.ok) throw new Error("HTTP "+res.status);
       const data = await res.json();
       if (!data.collections) data.collections=[];
@@ -2097,11 +2097,14 @@ async function drawLevelThumbnail(canvas, collectionId, levelId) {
     // reset
     canvas.width = canvas.width;
 
-    const base = BASE_PATH + `levels/${levelId}`;
-    const levelRes = await fetch(base + ".json");
-    const levelData = await levelRes.json();
-    const palette = levelData.palette;
-    const baseGrid = levelData.grid;
+    const base = `./levels/${levelId}`;
+    const [paletteRes, gridRes] = await Promise.all([
+      fetch(base + "_palette.json"),
+      fetch(base + "_grid.json")
+    ]);
+
+    const palette = await paletteRes.json();
+    const baseGrid = await gridRes.json();
 
     const saved = await loadLevelProgressData(collectionId, levelId);
 
@@ -2255,6 +2258,7 @@ async function drawLevelThumbnail(canvas, collectionId, levelId) {
 
    backFromGame.addEventListener("click", () => {
 saveCurrentProgress();   // 🔥 FORCE LA SAUVEGARDE
+cannonStop(); // 🔫 Arrêter le canon
 
 // Mise à jour de la miniature avant retour
 const thumbCanvas = document.querySelector(`canvas[data-level-thumb="${currentGame.levelId}"]`);
@@ -2406,21 +2410,27 @@ function setupCanvasForGrid() {
 
   async function loadLevelDataFromServer(collectionId, levelId) {
     try {
-      const base = BASE_PATH + `levels/${levelId}`;
-      const res = await fetch(base + ".json");
-      if (!res.ok) {
-        throw new Error("Erreur chargement fichier de niveau");
+      const base = `./levels/${levelId}`;
+      const [metaRes, paletteRes, gridRes, gameGridRes] = await Promise.all([
+        fetch(base + "_meta.json"),
+        fetch(base + "_palette.json"),
+        fetch(base + "_grid.json"),
+        fetch(base + "_gameGrid.json").catch(() => null),
+      ]);
+      if (!metaRes.ok || !paletteRes.ok || !gridRes.ok) {
+        throw new Error("Erreur chargement fichiers de niveau");
       }
-      const levelData = await res.json();
-      const meta = levelData.meta;
-      const palette = levelData.palette;
-      const grid = levelData.grid;
+      const meta = await metaRes.json();
+      const palette = await paletteRes.json();
+      const grid = await gridRes.json();
 
       // Charger la gameGrid si disponible
       currentGame.gameGrid = null;
-      if (levelData.gameGrid) {
-        currentGame.gameGrid = levelData.gameGrid;
-        console.log('gameGrid chargée:', currentGame.gameGrid?.length, 'rows x', currentGame.gameGrid?.[0]?.length, 'cols');
+      if (gameGridRes && gameGridRes.ok) {
+        try { 
+          currentGame.gameGrid = await gameGridRes.json();
+          console.log('gameGrid chargée:', currentGame.gameGrid?.length, 'rows x', currentGame.gameGrid?.[0]?.length, 'cols');
+        } catch(e) { console.warn('gameGrid parse error:', e); }
       } else {
         console.log('Pas de gameGrid trouvée — génération aléatoire');
       }
@@ -3229,15 +3239,15 @@ function bjRenderGrid() {
         cell.addEventListener('mouseleave', () => cell.style.transform = `scale(1)`);
 
       } else {
-        // Pastille bloquée — couleur visible + léger assombrissement
+        // Pastille bloquée — plus sombre, moins saturée
         const color = bjColorFromPalette(ci);
-        const shadowColor = color.replace('rgb(', 'rgba(').replace(')', ',0.35)');
-        cell.style.cssText = base + `border-radius:50%;opacity:0.82;`;
+        cell.style.cssText = base + `border-radius:50%;opacity:0.45;`;
         cell.innerHTML = `<div style="
           width:100%;height:100%;border-radius:50%;
           background:${bjMake3DColor(color)};
-          box-shadow: 0 ${Math.round(sz*0.06)}px 0 ${shadowColor};
+          box-shadow: 0 2px 0 rgba(0,0,0,0.2);
           border: 2px solid rgba(255,255,255,0.2);
+          filter: saturate(0.6);
         "></div>`;
       }
 
@@ -3482,85 +3492,17 @@ function bjRevealColor(colorIndex) {
   }
 
   triggerHaptic('medium');
-  bjSetMsg('Match ! Pixels révélés !');
+  bjSetMsg('Match ! Canon activé ! 🔫');
   updateGameUI();
   needsSave = true;
 
   if (!cells.length) { saveCurrentProgress(); checkCompletion(); return; }
 
-  // Canvas particules
-  const particleCanvas = document.getElementById('gameCanvasParticles');
-  if (!particleCanvas) { saveCurrentProgress(); checkCompletion(); return; }
-  particleCanvas.width = gameCanvas.width;
-  particleCanvas.height = gameCanvas.height;
-  const ctxP = particleCanvas.getContext('2d');
-
-  // Générer particules depuis le bas (zone d'attente) vers chaque cellule
-  const DURATION = 500; // ms
-  const particles = cells.map(cell => ({
-    cx: cell.cx, cy: cell.cy,
-    delay: Math.random() * 150, // léger décalage
-    done: false
-  }));
-
-  let startTs = null;
-  let revealed = false;
-
-  function animParticles(ts) {
-    if (!startTs) startTs = ts;
-    const elapsed = ts - startTs;
-
-    ctxP.clearRect(0, 0, particleCanvas.width, particleCanvas.height);
-
-    let allDone = true;
-    particles.forEach(p => {
-      const t = Math.max(0, elapsed - p.delay);
-      const progress = Math.min(t / DURATION, 1);
-
-      if (progress < 1) {
-        allDone = false;
-        // Particule qui monte du bas vers la cellule cible
-        const startY = particleCanvas.height + 20;
-        const px = p.cx;
-        const py = startY + (p.cy - startY) * (progress * progress);
-        const size = 4 + (1 - progress) * 4;
-        ctxP.globalAlpha = 1 - progress * 0.3;
-        ctxP.fillStyle = colorRGB;
-        ctxP.beginPath();
-        ctxP.arc(px, py, size, 0, Math.PI * 2);
-        ctxP.fill();
-
-        // Révéler le pixel quand la particule arrive
-        if (progress > 0.85 && !p.done) {
-          p.done = true;
-          ctxScratch.globalCompositeOperation = 'destination-out';
-          ctxScratch.beginPath();
-          ctxScratch.arc(p.cx, p.cy, Math.min(cellW, cellH) * 0.85, 0, Math.PI * 2);
-          ctxScratch.fill();
-          ctxScratch.globalCompositeOperation = 'source-over';
-        }
-      } else if (!p.done) {
-        p.done = true;
-        ctxScratch.globalCompositeOperation = 'destination-out';
-        ctxScratch.beginPath();
-        ctxScratch.arc(p.cx, p.cy, Math.min(cellW, cellH) * 0.85, 0, Math.PI * 2);
-        ctxScratch.fill();
-        ctxScratch.globalCompositeOperation = 'source-over';
-      }
-    });
-
-    ctxP.globalAlpha = 1;
-
-    if (!allDone) {
-      requestAnimationFrame(animParticles);
-    } else {
-      ctxP.clearRect(0, 0, particleCanvas.width, particleCanvas.height);
-      saveCurrentProgress();
-      checkCompletion();
-    }
-  }
-
-  requestAnimationFrame(animParticles);
+  // 🔫 Fire via cannon
+  cannonFireAtCells(cells, colorRGB, () => {
+    saveCurrentProgress();
+    checkCompletion();
+  });
 }
 
 function bjRefillGrid() {} // plus utilisé — grille fixe
@@ -3582,6 +3524,294 @@ function bjCheckGameOver() {
 function bjSetMsg(t) {
   const el = document.getElementById('bjMsg');
   if (el) el.textContent = t;
+}
+
+// ==========================================
+// 🔫 CANNON ON CONVEYOR BELT
+// ==========================================
+let cannonX = 0.5;       // position normalisée 0..1
+let cannonDir = 1;        // direction: 1=droite, -1=gauche
+let cannonSpeed = 0.008;  // vitesse de déplacement
+let cannonMoving = false; // ne bouge que pendant distribution
+let cannonAnimId = null;
+let cannonFiring = false;
+let cannonProjectiles = []; // particules en vol
+
+function cannonGetCanvas() {
+  const c = document.getElementById('cannonCanvas');
+  if (!c) return null;
+  // Adapter la résolution au CSS
+  const rect = c.getBoundingClientRect();
+  if (c.width !== Math.round(rect.width * 2) || c.height !== Math.round(rect.height * 2)) {
+    c.width = Math.round(rect.width * 2);
+    c.height = Math.round(rect.height * 2);
+  }
+  return c;
+}
+
+function cannonDraw() {
+  const c = cannonGetCanvas();
+  if (!c) return;
+  const ctx = c.getContext('2d');
+  const W = c.width;
+  const H = c.height;
+  ctx.clearRect(0, 0, W, H);
+
+  // Tapis roulant (fond)
+  const beltGrad = ctx.createLinearGradient(0, 0, 0, H);
+  beltGrad.addColorStop(0, '#c8cfe0');
+  beltGrad.addColorStop(0.5, '#b0b8cc');
+  beltGrad.addColorStop(1, '#9aa4b8');
+  ctx.fillStyle = beltGrad;
+  ctx.beginPath();
+  ctx.roundRect(4, 4, W - 8, H - 8, 12);
+  ctx.fill();
+
+  // Lignes du tapis (animation subtile)
+  const t = Date.now() * 0.002;
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+  ctx.lineWidth = 2;
+  const stripeSpacing = 20;
+  for (let i = -2; i < W / stripeSpacing + 2; i++) {
+    const xOff = ((i * stripeSpacing + t * 30 * (cannonMoving ? cannonDir : 0)) % (W + stripeSpacing)) - stripeSpacing;
+    ctx.beginPath();
+    ctx.moveTo(xOff, 6);
+    ctx.lineTo(xOff + 8, H - 6);
+    ctx.stroke();
+  }
+
+  // Canon
+  const cx = 20 + cannonX * (W - 40);
+  const cy = H / 2;
+  const cw = 36;
+  const ch = 28;
+
+  // Roues
+  ctx.fillStyle = '#555e6e';
+  ctx.beginPath(); ctx.arc(cx - 10, H - 8, 6, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(cx + 10, H - 8, 6, 0, Math.PI * 2); ctx.fill();
+
+  // Corps du canon
+  const bodyGrad = ctx.createLinearGradient(cx - cw/2, cy - ch/2, cx - cw/2, cy + ch/2);
+  bodyGrad.addColorStop(0, '#6874c8');
+  bodyGrad.addColorStop(0.5, '#4a54a0');
+  bodyGrad.addColorStop(1, '#3a4080');
+  ctx.fillStyle = bodyGrad;
+  ctx.beginPath();
+  ctx.roundRect(cx - cw/2, cy - ch/2, cw, ch, 8);
+  ctx.fill();
+
+  // Highlight
+  ctx.fillStyle = 'rgba(255,255,255,0.25)';
+  ctx.beginPath();
+  ctx.roundRect(cx - cw/2 + 3, cy - ch/2 + 2, cw - 6, ch/3, 4);
+  ctx.fill();
+
+  // Tube du canon (vers le haut)
+  const tubeW = 12;
+  const tubeH = 14;
+  ctx.fillStyle = '#3a4080';
+  ctx.beginPath();
+  ctx.roundRect(cx - tubeW/2, cy - ch/2 - tubeH + 4, tubeW, tubeH, [4, 4, 0, 0]);
+  ctx.fill();
+
+  // Bouche du canon — cercle
+  ctx.fillStyle = '#222';
+  ctx.beginPath();
+  ctx.arc(cx, cy - ch/2 - tubeH + 6, 4, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Flash si en train de tirer
+  if (cannonFiring) {
+    ctx.fillStyle = 'rgba(255,200,50,0.6)';
+    ctx.beginPath();
+    ctx.arc(cx, cy - ch/2 - tubeH + 2, 8 + Math.random() * 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function cannonStartMoving() {
+  if (cannonMoving) return;
+  cannonMoving = true;
+}
+
+function cannonStopMoving() {
+  cannonMoving = false;
+}
+
+function cannonTick() {
+  if (cannonMoving) {
+    cannonX += cannonSpeed * cannonDir;
+    if (cannonX >= 1) { cannonX = 1; cannonDir = -1; }
+    if (cannonX <= 0) { cannonX = 0; cannonDir = 1; }
+  }
+  cannonDraw();
+  cannonAnimId = requestAnimationFrame(cannonTick);
+}
+
+function cannonStart() {
+  if (cannonAnimId) cancelAnimationFrame(cannonAnimId);
+  cannonX = 0.5;
+  cannonDir = 1;
+  cannonMoving = false;
+  cannonFiring = false;
+  cannonTick();
+}
+
+function cannonStop() {
+  if (cannonAnimId) {
+    cancelAnimationFrame(cannonAnimId);
+    cannonAnimId = null;
+  }
+}
+
+// Fire projectiles from cannon to target cells on image
+function cannonFireAtCells(cells, colorRGB, onAllLanded) {
+  const c = cannonGetCanvas();
+  if (!c) { onAllLanded(); return; }
+  const cRect = c.getBoundingClientRect();
+  const imgWrap = document.getElementById('gameCanvasWrap');
+  if (!imgWrap) { onAllLanded(); return; }
+  const imgRect = imgWrap.getBoundingClientRect();
+
+  cannonStartMoving();
+  cannonFiring = true;
+
+  const particleCanvas = document.getElementById('gameCanvasParticles');
+  if (!particleCanvas) { onAllLanded(); return; }
+  particleCanvas.width = gameCanvas.width;
+  particleCanvas.height = gameCanvas.height;
+  const ctxP = particleCanvas.getContext('2d');
+
+  const cellW = gameCanvas.width / currentGame.gridW;
+  const cellH = gameCanvas.height / currentGame.gridH;
+
+  // Stagger: fire one projectile every ~60ms as cannon moves
+  const FIRE_INTERVAL = 60;
+  const FLY_DURATION = 400;
+  let firedCount = 0;
+  let landedCount = 0;
+  const projectiles = [];
+
+  function fireNext() {
+    if (firedCount >= cells.length) return;
+    const cell = cells[firedCount];
+
+    // Canon position in canvas-space coordinates
+    const canvasC = cannonGetCanvas();
+    const cannonScreenX = cRect.left + 20 + cannonX * (cRect.width - 40);
+    const cannonScreenY = cRect.top;
+
+    // Target in screen coords
+    const scaleX = imgRect.width / gameCanvas.width;
+    const scaleY = imgRect.height / gameCanvas.height;
+    const targetScreenX = imgRect.left + cell.cx * scaleX;
+    const targetScreenY = imgRect.top + cell.cy * scaleY;
+
+    // Convert to particle canvas coords
+    const startX = cell.cx; // we'll use relative coords
+    const startY = gameCanvas.height + 40; // below canvas = from cannon area
+    // Offset startX based on cannon position
+    const cannonNormX = cannonX;
+    const pStartX = cannonNormX * gameCanvas.width;
+
+    projectiles.push({
+      startX: pStartX,
+      startY: startY,
+      targetX: cell.cx,
+      targetY: cell.cy,
+      startTime: performance.now(),
+      done: false
+    });
+
+    firedCount++;
+    if (firedCount < cells.length) {
+      setTimeout(fireNext, FIRE_INTERVAL);
+    }
+  }
+
+  function animProjectiles(ts) {
+    ctxP.clearRect(0, 0, particleCanvas.width, particleCanvas.height);
+    let allDone = true;
+
+    projectiles.forEach(p => {
+      if (p.done) return;
+      const elapsed = ts - p.startTime;
+      const progress = Math.min(elapsed / FLY_DURATION, 1);
+
+      if (progress < 1) {
+        allDone = false;
+        // Arc trajectory
+        const t = progress;
+        const arcHeight = -Math.min(gameCanvas.height * 0.4, 200);
+        const px = p.startX + (p.targetX - p.startX) * t;
+        const py = p.startY + (p.targetY - p.startY) * t + arcHeight * Math.sin(Math.PI * t);
+        const size = 3 + (1 - t) * 3;
+
+        // Traînée
+        ctxP.globalAlpha = 0.3;
+        ctxP.fillStyle = colorRGB;
+        for (let trail = 0; trail < 3; trail++) {
+          const tt = Math.max(0, t - trail * 0.04);
+          const tpx = p.startX + (p.targetX - p.startX) * tt;
+          const tpy = p.startY + (p.targetY - p.startY) * tt + arcHeight * Math.sin(Math.PI * tt);
+          ctxP.beginPath();
+          ctxP.arc(tpx, tpy, size * 0.5, 0, Math.PI * 2);
+          ctxP.fill();
+        }
+
+        // Particule principale
+        ctxP.globalAlpha = 1;
+        ctxP.fillStyle = colorRGB;
+        ctxP.beginPath();
+        ctxP.arc(px, py, size, 0, Math.PI * 2);
+        ctxP.fill();
+
+        // Glow
+        ctxP.globalAlpha = 0.3;
+        ctxP.fillStyle = 'white';
+        ctxP.beginPath();
+        ctxP.arc(px, py, size * 1.5, 0, Math.PI * 2);
+        ctxP.fill();
+
+        // Reveal when close
+        if (progress > 0.85 && !p.done) {
+          p.done = true;
+          landedCount++;
+          ctxScratch.globalCompositeOperation = 'destination-out';
+          ctxScratch.beginPath();
+          ctxScratch.arc(p.targetX, p.targetY, Math.min(cellW, cellH) * 0.85, 0, Math.PI * 2);
+          ctxScratch.fill();
+          ctxScratch.globalCompositeOperation = 'source-over';
+        }
+      } else if (!p.done) {
+        p.done = true;
+        landedCount++;
+        ctxScratch.globalCompositeOperation = 'destination-out';
+        ctxScratch.beginPath();
+        ctxScratch.arc(p.targetX, p.targetY, Math.min(cellW, cellH) * 0.85, 0, Math.PI * 2);
+        ctxScratch.fill();
+        ctxScratch.globalCompositeOperation = 'source-over';
+      }
+    });
+
+    ctxP.globalAlpha = 1;
+
+    if (!allDone || firedCount < cells.length) {
+      requestAnimationFrame(animProjectiles);
+    } else {
+      ctxP.clearRect(0, 0, particleCanvas.width, particleCanvas.height);
+      cannonFiring = false;
+      cannonStopMoving();
+      onAllLanded();
+    }
+  }
+
+  // Start firing
+  setTimeout(() => {
+    fireNext();
+    requestAnimationFrame(animProjectiles);
+  }, 100);
 }
 
 function bjInit() {
@@ -3630,6 +3860,7 @@ function bjInit() {
       bjRenderGrid();
       bjRenderWait();
       bjSetMsg('Envoie 3 sauts identiques !');
+      cannonStart(); // 🔫 Démarrer le canon
     });
   });
 }
@@ -3925,8 +4156,15 @@ buildCategoryTabs();  // 👈 catégories du builder !
   });
 
 
-  // Service Worker désactivé (pas de sw.js sur GitHub Pages)
-  // if ("serviceWorker" in navigator) { ... }
+  // Enregistrement du Service Worker pour PWA
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker
+        .register("./sw.js") /* navigator.serviceWorker.register('./sw.js'); */
+
+        .catch(err => console.warn("SW registration failed", err));
+    });
+  }
 </script>
 
 <!-- Sons UI & scratch -->
