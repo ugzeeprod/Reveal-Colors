@@ -1602,7 +1602,7 @@ html, body {
         <div id="gameBottomZone" style="width:100%;display:flex;flex-direction:column;align-items:center;gap:6px;padding:6px 0 4px;user-select:none;flex:1;min-height:0;overflow:hidden;">
 
           <!-- CANON SUR TAPIS ROULANT -->
-          <canvas id="cannonCanvas" style="width:100%;height:40px;flex-shrink:0;border-radius:10px;"></canvas>
+          <canvas id="cannonCanvas" style="width:100%;height:52px;flex-shrink:0;border-radius:12px;"></canvas>
 
           <!-- ZONE D'ATTENTE -->
           <div id="waitZoneRow" style="display:flex;gap:6px;background:rgba(0,0,0,0.06);padding:6px 10px;border-radius:14px;justify-content:center;align-items:center;flex-shrink:0;"></div>
@@ -3525,26 +3525,27 @@ function bjSetMsg(t) {
 // ==========================================
 let cannonX = 0.5;       // position normalisée 0..1
 let cannonDir = 1;        // direction: 1=droite, -1=gauche
-let cannonSpeed = 0.008;  // vitesse de déplacement
+let cannonSpeed = 0.012;  // vitesse de déplacement
 let cannonMoving = false; // ne bouge que pendant distribution
 let cannonAnimId = null;
 let cannonFiring = false;
-let cannonProjectiles = []; // particules en vol
 
-function cannonGetCanvas() {
+function cannonResizeCanvas() {
   const c = document.getElementById('cannonCanvas');
   if (!c) return null;
-  // Adapter la résolution au CSS
   const rect = c.getBoundingClientRect();
-  if (c.width !== Math.round(rect.width * 2) || c.height !== Math.round(rect.height * 2)) {
-    c.width = Math.round(rect.width * 2);
-    c.height = Math.round(rect.height * 2);
+  const dpr = window.devicePixelRatio || 1;
+  const w = Math.round(rect.width * dpr);
+  const h = Math.round(rect.height * dpr);
+  if (c.width !== w || c.height !== h) {
+    c.width = w;
+    c.height = h;
   }
   return c;
 }
 
 function cannonDraw() {
-  const c = cannonGetCanvas();
+  const c = cannonResizeCanvas();
   if (!c) return;
   const ctx = c.getContext('2d');
   const W = c.width;
@@ -3552,85 +3553,101 @@ function cannonDraw() {
   ctx.clearRect(0, 0, W, H);
 
   // Tapis roulant (fond)
-  const beltGrad = ctx.createLinearGradient(0, 0, 0, H);
-  beltGrad.addColorStop(0, '#c8cfe0');
-  beltGrad.addColorStop(0.5, '#b0b8cc');
-  beltGrad.addColorStop(1, '#9aa4b8');
-  ctx.fillStyle = beltGrad;
+  ctx.fillStyle = '#d0d5e3';
   ctx.beginPath();
-  ctx.roundRect(4, 4, W - 8, H - 8, 12);
+  ctx.roundRect(0, 0, W, H, H * 0.3);
   ctx.fill();
 
-  // Lignes du tapis (animation subtile)
-  const t = Date.now() * 0.002;
-  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+  // Rails
+  ctx.strokeStyle = 'rgba(0,0,0,0.1)';
   ctx.lineWidth = 2;
-  const stripeSpacing = 20;
-  for (let i = -2; i < W / stripeSpacing + 2; i++) {
-    const xOff = ((i * stripeSpacing + t * 30 * (cannonMoving ? cannonDir : 0)) % (W + stripeSpacing)) - stripeSpacing;
+  ctx.beginPath();
+  ctx.moveTo(H * 0.3, H * 0.75);
+  ctx.lineTo(W - H * 0.3, H * 0.75);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(H * 0.3, H * 0.85);
+  ctx.lineTo(W - H * 0.3, H * 0.85);
+  ctx.stroke();
+
+  // Rayures du tapis (bougent quand cannonMoving)
+  ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(0, 0, W, H, H * 0.3);
+  ctx.clip();
+  const stripeW = 14;
+  const offset = cannonMoving ? (Date.now() * 0.08 * cannonDir) % stripeW : 0;
+  ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+  ctx.lineWidth = 3;
+  for (let x = -stripeW + offset; x < W + stripeW; x += stripeW) {
     ctx.beginPath();
-    ctx.moveTo(xOff, 6);
-    ctx.lineTo(xOff + 8, H - 6);
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x + 6, H);
     ctx.stroke();
   }
+  ctx.restore();
 
-  // Canon
-  const cx = 20 + cannonX * (W - 40);
-  const cy = H / 2;
-  const cw = 36;
-  const ch = 28;
+  // Canon — position
+  const margin = H * 1.5;
+  const cx = margin + cannonX * (W - margin * 2);
+  const cy = H * 0.45;
+  const bodyW = H * 0.8;
+  const bodyH = H * 0.55;
+
+  // Ombre
+  ctx.fillStyle = 'rgba(0,0,0,0.12)';
+  ctx.beginPath();
+  ctx.ellipse(cx, H * 0.88, bodyW * 0.5, H * 0.08, 0, 0, Math.PI * 2);
+  ctx.fill();
 
   // Roues
-  ctx.fillStyle = '#555e6e';
-  ctx.beginPath(); ctx.arc(cx - 10, H - 8, 6, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc(cx + 10, H - 8, 6, 0, Math.PI * 2); ctx.fill();
+  const wheelR = H * 0.1;
+  ctx.fillStyle = '#444';
+  ctx.beginPath(); ctx.arc(cx - bodyW * 0.3, H * 0.78, wheelR, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(cx + bodyW * 0.3, H * 0.78, wheelR, 0, Math.PI * 2); ctx.fill();
 
-  // Corps du canon
-  const bodyGrad = ctx.createLinearGradient(cx - cw/2, cy - ch/2, cx - cw/2, cy + ch/2);
-  bodyGrad.addColorStop(0, '#6874c8');
-  bodyGrad.addColorStop(0.5, '#4a54a0');
-  bodyGrad.addColorStop(1, '#3a4080');
-  ctx.fillStyle = bodyGrad;
+  // Corps
+  const bg = ctx.createLinearGradient(cx, cy - bodyH/2, cx, cy + bodyH/2);
+  bg.addColorStop(0, '#7b86d9');
+  bg.addColorStop(0.5, '#5560b3');
+  bg.addColorStop(1, '#3d4590');
+  ctx.fillStyle = bg;
   ctx.beginPath();
-  ctx.roundRect(cx - cw/2, cy - ch/2, cw, ch, 8);
+  ctx.roundRect(cx - bodyW/2, cy - bodyH/2, bodyW, bodyH, bodyH * 0.25);
   ctx.fill();
 
   // Highlight
-  ctx.fillStyle = 'rgba(255,255,255,0.25)';
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
   ctx.beginPath();
-  ctx.roundRect(cx - cw/2 + 3, cy - ch/2 + 2, cw - 6, ch/3, 4);
+  ctx.roundRect(cx - bodyW/2 + 4, cy - bodyH/2 + 2, bodyW - 8, bodyH * 0.3, 4);
   ctx.fill();
 
-  // Tube du canon (vers le haut)
-  const tubeW = 12;
-  const tubeH = 14;
-  ctx.fillStyle = '#3a4080';
+  // Tube (pointe vers le haut)
+  const tubeW = bodyW * 0.28;
+  const tubeH = bodyH * 0.7;
+  ctx.fillStyle = '#3d4590';
   ctx.beginPath();
-  ctx.roundRect(cx - tubeW/2, cy - ch/2 - tubeH + 4, tubeW, tubeH, [4, 4, 0, 0]);
+  ctx.roundRect(cx - tubeW/2, cy - bodyH/2 - tubeH + 6, tubeW, tubeH, [tubeW * 0.3, tubeW * 0.3, 0, 0]);
   ctx.fill();
 
-  // Bouche du canon — cercle
+  // Bouche
   ctx.fillStyle = '#222';
   ctx.beginPath();
-  ctx.arc(cx, cy - ch/2 - tubeH + 6, 4, 0, Math.PI * 2);
+  ctx.ellipse(cx, cy - bodyH/2 - tubeH + 8, tubeW * 0.35, tubeW * 0.25, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // Flash si en train de tirer
+  // Flash quand tir
   if (cannonFiring) {
-    ctx.fillStyle = 'rgba(255,200,50,0.6)';
+    const flashR = tubeW * 0.6 + Math.random() * tubeW * 0.3;
+    ctx.fillStyle = `rgba(255, 220, 80, ${0.5 + Math.random() * 0.3})`;
     ctx.beginPath();
-    ctx.arc(cx, cy - ch/2 - tubeH + 2, 8 + Math.random() * 4, 0, Math.PI * 2);
+    ctx.arc(cx, cy - bodyH/2 - tubeH + 4, flashR, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = `rgba(255, 255, 255, ${0.3 + Math.random() * 0.2})`;
+    ctx.beginPath();
+    ctx.arc(cx, cy - bodyH/2 - tubeH + 4, flashR * 0.5, 0, Math.PI * 2);
     ctx.fill();
   }
-}
-
-function cannonStartMoving() {
-  if (cannonMoving) return;
-  cannonMoving = true;
-}
-
-function cannonStopMoving() {
-  cannonMoving = false;
 }
 
 function cannonTick() {
@@ -3640,16 +3657,28 @@ function cannonTick() {
     if (cannonX <= 0) { cannonX = 0; cannonDir = 1; }
   }
   cannonDraw();
-  cannonAnimId = requestAnimationFrame(cannonTick);
+  if (cannonMoving || cannonFiring) {
+    cannonAnimId = requestAnimationFrame(cannonTick);
+  } else {
+    cannonAnimId = null;
+  }
+}
+
+function cannonEnsureRunning() {
+  if (!cannonAnimId) {
+    cannonAnimId = requestAnimationFrame(cannonTick);
+  }
 }
 
 function cannonStart() {
   if (cannonAnimId) cancelAnimationFrame(cannonAnimId);
+  cannonAnimId = null;
   cannonX = 0.5;
   cannonDir = 1;
   cannonMoving = false;
   cannonFiring = false;
-  cannonTick();
+  // Dessiner une seule frame statique
+  requestAnimationFrame(() => cannonDraw());
 }
 
 function cannonStop() {
@@ -3661,57 +3690,37 @@ function cannonStop() {
 
 // Fire projectiles from cannon to target cells on image
 function cannonFireAtCells(cells, colorRGB, onAllLanded) {
-  const c = cannonGetCanvas();
-  if (!c) { onAllLanded(); return; }
-  const cRect = c.getBoundingClientRect();
-  const imgWrap = document.getElementById('gameCanvasWrap');
-  if (!imgWrap) { onAllLanded(); return; }
-  const imgRect = imgWrap.getBoundingClientRect();
-
-  cannonStartMoving();
-  cannonFiring = true;
-
-  const particleCanvas = document.getElementById('gameCanvasParticles');
-  if (!particleCanvas) { onAllLanded(); return; }
-  particleCanvas.width = gameCanvas.width;
-  particleCanvas.height = gameCanvas.height;
-  const ctxP = particleCanvas.getContext('2d');
+  if (!cells.length) { onAllLanded(); return; }
 
   const cellW = gameCanvas.width / currentGame.gridW;
   const cellH = gameCanvas.height / currentGame.gridH;
 
-  // Stagger: fire one projectile every ~60ms as cannon moves
-  const FIRE_INTERVAL = 60;
-  const FLY_DURATION = 400;
+  // Start cannon moving & firing
+  cannonMoving = true;
+  cannonFiring = true;
+  cannonEnsureRunning();
+
+  const particleCanvas = document.getElementById('gameCanvasParticles');
+  if (!particleCanvas) { cannonMoving = false; cannonFiring = false; onAllLanded(); return; }
+  particleCanvas.width = gameCanvas.width;
+  particleCanvas.height = gameCanvas.height;
+  const ctxP = particleCanvas.getContext('2d');
+
+  const FIRE_INTERVAL = Math.max(30, Math.min(80, 600 / cells.length));
+  const FLY_DURATION = 450;
   let firedCount = 0;
-  let landedCount = 0;
   const projectiles = [];
 
   function fireNext() {
     if (firedCount >= cells.length) return;
     const cell = cells[firedCount];
 
-    // Canon position in canvas-space coordinates
-    const canvasC = cannonGetCanvas();
-    const cannonScreenX = cRect.left + 20 + cannonX * (cRect.width - 40);
-    const cannonScreenY = cRect.top;
-
-    // Target in screen coords
-    const scaleX = imgRect.width / gameCanvas.width;
-    const scaleY = imgRect.height / gameCanvas.height;
-    const targetScreenX = imgRect.left + cell.cx * scaleX;
-    const targetScreenY = imgRect.top + cell.cy * scaleY;
-
-    // Convert to particle canvas coords
-    const startX = cell.cx; // we'll use relative coords
-    const startY = gameCanvas.height + 40; // below canvas = from cannon area
-    // Offset startX based on cannon position
-    const cannonNormX = cannonX;
-    const pStartX = cannonNormX * gameCanvas.width;
+    // Point de départ = position actuelle du canon (en coordonnées du canvas image)
+    const startX = cannonX * gameCanvas.width;
+    const startY = gameCanvas.height; // bas de l'image = haut du canon
 
     projectiles.push({
-      startX: pStartX,
-      startY: startY,
+      startX, startY,
       targetX: cell.cx,
       targetY: cell.cy,
       startTime: performance.now(),
@@ -3721,6 +3730,11 @@ function cannonFireAtCells(cells, colorRGB, onAllLanded) {
     firedCount++;
     if (firedCount < cells.length) {
       setTimeout(fireNext, FIRE_INTERVAL);
+    } else {
+      // Dernier projectile tiré — arrêter le canon après qu'il atterrit
+      setTimeout(() => {
+        cannonFiring = false;
+      }, FLY_DURATION * 0.5);
     }
   }
 
@@ -3731,26 +3745,25 @@ function cannonFireAtCells(cells, colorRGB, onAllLanded) {
     projectiles.forEach(p => {
       if (p.done) return;
       const elapsed = ts - p.startTime;
-      const progress = Math.min(elapsed / FLY_DURATION, 1);
+      const t = Math.min(elapsed / FLY_DURATION, 1);
 
-      if (progress < 1) {
+      if (t < 1) {
         allDone = false;
-        // Arc trajectory
-        const t = progress;
-        const arcHeight = -Math.min(gameCanvas.height * 0.4, 200);
+        // Trajectoire en arc parabolique
+        const arcHeight = gameCanvas.height * 0.3 + Math.abs(p.startX - p.targetX) * 0.15;
         const px = p.startX + (p.targetX - p.startX) * t;
-        const py = p.startY + (p.targetY - p.startY) * t + arcHeight * Math.sin(Math.PI * t);
-        const size = 3 + (1 - t) * 3;
+        const py = p.startY + (p.targetY - p.startY) * t - arcHeight * Math.sin(Math.PI * t);
+        const size = 3 + (1 - t) * 4;
 
         // Traînée
-        ctxP.globalAlpha = 0.3;
+        ctxP.globalAlpha = 0.25;
         ctxP.fillStyle = colorRGB;
-        for (let trail = 0; trail < 3; trail++) {
-          const tt = Math.max(0, t - trail * 0.04);
+        for (let trail = 1; trail <= 3; trail++) {
+          const tt = Math.max(0, t - trail * 0.035);
           const tpx = p.startX + (p.targetX - p.startX) * tt;
-          const tpy = p.startY + (p.targetY - p.startY) * tt + arcHeight * Math.sin(Math.PI * tt);
+          const tpy = p.startY + (p.targetY - p.startY) * tt - arcHeight * Math.sin(Math.PI * tt);
           ctxP.beginPath();
-          ctxP.arc(tpx, tpy, size * 0.5, 0, Math.PI * 2);
+          ctxP.arc(tpx, tpy, size * (0.6 - trail * 0.1), 0, Math.PI * 2);
           ctxP.fill();
         }
 
@@ -3761,17 +3774,16 @@ function cannonFireAtCells(cells, colorRGB, onAllLanded) {
         ctxP.arc(px, py, size, 0, Math.PI * 2);
         ctxP.fill();
 
-        // Glow
-        ctxP.globalAlpha = 0.3;
+        // Glow blanc
+        ctxP.globalAlpha = 0.4;
         ctxP.fillStyle = 'white';
         ctxP.beginPath();
-        ctxP.arc(px, py, size * 1.5, 0, Math.PI * 2);
+        ctxP.arc(px, py, size * 0.5, 0, Math.PI * 2);
         ctxP.fill();
 
-        // Reveal when close
-        if (progress > 0.85 && !p.done) {
+        // Révéler le pixel à l'arrivée
+        if (t > 0.88 && !p.done) {
           p.done = true;
-          landedCount++;
           ctxScratch.globalCompositeOperation = 'destination-out';
           ctxScratch.beginPath();
           ctxScratch.arc(p.targetX, p.targetY, Math.min(cellW, cellH) * 0.85, 0, Math.PI * 2);
@@ -3780,7 +3792,6 @@ function cannonFireAtCells(cells, colorRGB, onAllLanded) {
         }
       } else if (!p.done) {
         p.done = true;
-        landedCount++;
         ctxScratch.globalCompositeOperation = 'destination-out';
         ctxScratch.beginPath();
         ctxScratch.arc(p.targetX, p.targetY, Math.min(cellW, cellH) * 0.85, 0, Math.PI * 2);
@@ -3791,21 +3802,27 @@ function cannonFireAtCells(cells, colorRGB, onAllLanded) {
 
     ctxP.globalAlpha = 1;
 
-    if (!allDone || firedCount < cells.length) {
+    const allFired = firedCount >= cells.length;
+    const allLanded = projectiles.every(p => p.done);
+
+    if (!allFired || !allLanded) {
       requestAnimationFrame(animProjectiles);
     } else {
+      // Tout est fini
       ctxP.clearRect(0, 0, particleCanvas.width, particleCanvas.height);
       cannonFiring = false;
-      cannonStopMoving();
+      cannonMoving = false;
+      // Redessiner le canon statique
+      requestAnimationFrame(() => cannonDraw());
       onAllLanded();
     }
   }
 
-  // Start firing
+  // Petit délai pour laisser le canon démarrer visuellement
   setTimeout(() => {
     fireNext();
     requestAnimationFrame(animProjectiles);
-  }, 100);
+  }, 150);
 }
 
 function bjInit() {
