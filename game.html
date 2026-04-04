@@ -3524,18 +3524,6 @@ function conveyorDraw() {
   ctx.fillStyle = '#d0d5e3';
   ctx.beginPath(); ctx.roundRect(0, 0, W, H, H * 0.25); ctx.fill();
 
-  // Rayures animées
-  ctx.save();
-  ctx.beginPath(); ctx.roundRect(0, 0, W, H, H * 0.25); ctx.clip();
-  const stripeW = 14 * dpr;
-  const offset = (Date.now() * 0.06) % stripeW;
-  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-  ctx.lineWidth = 2 * dpr;
-  for (let x = -stripeW + offset; x < W + stripeW; x += stripeW) {
-    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x + 6 * dpr, H); ctx.stroke();
-  }
-  ctx.restore();
-
   // Rails
   ctx.strokeStyle = 'rgba(0,0,0,0.08)';
   ctx.lineWidth = 1.5 * dpr;
@@ -3592,14 +3580,15 @@ function conveyorDraw() {
 }
 
 function conveyorTick() {
-  const c = document.getElementById('cannonCanvas');
-  if (!c) return;
-  const W = c.getBoundingClientRect().width;
-
+  // Pas de défilement — les canons sont en file statique (Bus Jam style)
+  // On recalcule les positions cibles pour combler les trous
+  let targetX = CANNON_GAP;
   conveyorCannons.forEach(cannon => {
-    if (cannon.dead || cannon.firing) return;
-    cannon.x += conveyorSpeed;
-    if (cannon.x > W + CANNON_WIDTH) cannon.x = -CANNON_WIDTH;
+    if (cannon.dead) return;
+    if (cannon.firing) { targetX += CANNON_WIDTH + CANNON_GAP; return; }
+    // Glisser doucement vers la position cible
+    cannon.x += (targetX - cannon.x) * 0.15;
+    targetX += CANNON_WIDTH + CANNON_GAP;
   });
 
   conveyorDraw();
@@ -3653,11 +3642,7 @@ function cannonFireAtCells(cells, colorRGB, onAllLanded) {
     const elapsed = ts - startTime;
     const progress = Math.min(elapsed / TOTAL_DURATION, 1);
 
-    // Canon va-et-vient pendant le tir
-    firingCannon.x += conveyorSpeed * 2 * firingCannon._fireDir;
-    if (firingCannon.x > beltW - CANNON_WIDTH) firingCannon._fireDir = -1;
-    if (firingCannon.x < CANNON_WIDTH) firingCannon._fireDir = 1;
-
+    // Canon reste sur place pendant le tir
     const cannonImgX = getCannonImageX();
     const totalToReveal = Math.floor(progress * sorted.length);
 
