@@ -1628,6 +1628,9 @@ html, body {
 
 <script>
 
+// ================= BASE PATH (GitHub Pages) ==================
+const BASE_PATH = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
+
 // ================= IndexedDB Helper + Compression ==================
 
 const DB_NAME = "RevealColorsDB";
@@ -1885,7 +1888,7 @@ async function saveLevelProgressData(payload) {
   // =========================
   async function loadLevelsConfig() {
     try {
-      const res = await fetch("./levels/levels.json");
+      const res = await fetch(BASE_PATH + "levels/levels.json");
       if (!res.ok) throw new Error("HTTP "+res.status);
       const data = await res.json();
       if (!data.collections) data.collections=[];
@@ -2097,14 +2100,11 @@ async function drawLevelThumbnail(canvas, collectionId, levelId) {
     // reset
     canvas.width = canvas.width;
 
-    const base = `./levels/${levelId}`;
-    const [paletteRes, gridRes] = await Promise.all([
-      fetch(base + "_palette.json"),
-      fetch(base + "_grid.json")
-    ]);
-
-    const palette = await paletteRes.json();
-    const baseGrid = await gridRes.json();
+    const base = BASE_PATH + `levels/${levelId}`;
+    const levelRes = await fetch(base + ".json");
+    const levelData = await levelRes.json();
+    const palette = levelData.palette;
+    const baseGrid = levelData.grid;
 
     const saved = await loadLevelProgressData(collectionId, levelId);
 
@@ -2410,27 +2410,21 @@ function setupCanvasForGrid() {
 
   async function loadLevelDataFromServer(collectionId, levelId) {
     try {
-      const base = `./levels/${levelId}`;
-      const [metaRes, paletteRes, gridRes, gameGridRes] = await Promise.all([
-        fetch(base + "_meta.json"),
-        fetch(base + "_palette.json"),
-        fetch(base + "_grid.json"),
-        fetch(base + "_gameGrid.json").catch(() => null),
-      ]);
-      if (!metaRes.ok || !paletteRes.ok || !gridRes.ok) {
-        throw new Error("Erreur chargement fichiers de niveau");
+      const base = BASE_PATH + `levels/${levelId}`;
+      const res = await fetch(base + ".json");
+      if (!res.ok) {
+        throw new Error("Erreur chargement fichier de niveau");
       }
-      const meta = await metaRes.json();
-      const palette = await paletteRes.json();
-      const grid = await gridRes.json();
+      const levelData = await res.json();
+      const meta = levelData.meta;
+      const palette = levelData.palette;
+      const grid = levelData.grid;
 
       // Charger la gameGrid si disponible
       currentGame.gameGrid = null;
-      if (gameGridRes && gameGridRes.ok) {
-        try { 
-          currentGame.gameGrid = await gameGridRes.json();
-          console.log('gameGrid chargée:', currentGame.gameGrid?.length, 'rows x', currentGame.gameGrid?.[0]?.length, 'cols');
-        } catch(e) { console.warn('gameGrid parse error:', e); }
+      if (levelData.gameGrid) {
+        currentGame.gameGrid = levelData.gameGrid;
+        console.log('gameGrid chargée:', currentGame.gameGrid?.length, 'rows x', currentGame.gameGrid?.[0]?.length, 'cols');
       } else {
         console.log('Pas de gameGrid trouvée — génération aléatoire');
       }
@@ -4156,15 +4150,7 @@ buildCategoryTabs();  // 👈 catégories du builder !
   });
 
 
-  // Enregistrement du Service Worker pour PWA
-  if ("serviceWorker" in navigator) {
-    window.addEventListener("load", () => {
-      navigator.serviceWorker
-        .register("./sw.js") /* navigator.serviceWorker.register('./sw.js'); */
-
-        .catch(err => console.warn("SW registration failed", err));
-    });
-  }
+  // Service Worker désactivé (pas de sw.js sur GitHub Pages)
 </script>
 
 <!-- Sons UI & scratch -->
