@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <title>Reveal Colors – Jeu</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 
   <!-- PWA / thème -->
   <meta name="theme-color" content="#fbe9f0" />
@@ -104,13 +104,15 @@
   -ms-user-select: none;
   user-select: none;
   outline: none;
+  touch-action: manipulation; /* empêche le double-tap zoom */
 }
 :focus { outline: none !important; }
-html, body { -webkit-touch-callout: none; }
+html, body { -webkit-touch-callout: none; touch-action: manipulation; }
 canvas {
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
+  touch-action: manipulation;
 }
 
     * { box-sizing: border-box; }
@@ -3642,92 +3644,120 @@ function cannonFireAtCells(cells, colorRGB, onAllLanded) {
   particleCanvas.height = gameCanvas.height;
   const ctxP = particleCanvas.getContext('2d');
 
-  // === PROGRESSIVE REVEAL : révéler les pixels par vagues sur 2 secondes ===
-  const TOTAL_DURATION = 2000; // ms
+  // === Trier les cellules par position X pour que le canon les "peigne" ===
+  // Le canon fait des allers-retours, on trie par sweeps
+  const sorted = [...cells].sort((a, b) => a.cx - b.cx);
+  
+  const TOTAL_DURATION = 3000; // 3 secondes
   const startTime = performance.now();
-  let revealedIdx = 0; // combien de cellules ont été révélées
+  let revealedIdx = 0;
 
-  // Mélanger les cellules pour un effet plus naturel
-  const shuffled = [...cells];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-
-  // Quelques particules visuelles en vol permanent pendant la durée
-  const NUM_STREAMS = 6; // jets simultanés
+  // Particules visuelles actives (jets du canon)
+  const activeJets = [];
 
   function animate(ts) {
     const elapsed = ts - startTime;
     const progress = Math.min(elapsed / TOTAL_DURATION, 1);
 
-    // Révéler progressivement les pixels
-    const targetRevealed = Math.floor(progress * shuffled.length);
-    while (revealedIdx < targetRevealed) {
-      const cell = shuffled[revealedIdx];
+    // Position actuelle du canon (normalisée 0..1)
+    const cannonPosX = cannonX;
+    const cannonPixelX = cannonPosX * gameCanvas.width;
+
+    // Révéler les cellules proches de la position du canon
+    // On révèle proportionnellement au temps, mais seulement celles 
+    // dont le X est proche du canon actuel (± tolérance)
+    const totalToReveal = Math.floor(progress * sorted.length);
+    const tolerance = gameCanvas.width * 0.15; // zone de dépôt autour du canon
+
+    while (revealedIdx < totalToReveal && revealedIdx < sorted.length) {
+      // Trouver la prochaine cellule la plus proche du canon
+      let bestIdx = -1;
+      let bestDist = Infinity;
+      for (let i = revealedIdx; i < Math.min(revealedIdx + 20, sorted.length); i++) {
+        const dist = Math.abs(sorted[i].cx - cannonPixelX);
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestIdx = i;
+        }
+      }
+      if (bestIdx > revealedIdx) {
+        // Swap pour révéler la plus proche en premier
+        [sorted[revealedIdx], sorted[bestIdx]] = [sorted[bestIdx], sorted[revealedIdx]];
+      }
+
+      const cell = sorted[revealedIdx];
       ctxScratch.globalCompositeOperation = 'destination-out';
       ctxScratch.beginPath();
       ctxScratch.arc(cell.cx, cell.cy, revealR, 0, Math.PI * 2);
       ctxScratch.fill();
       ctxScratch.globalCompositeOperation = 'source-over';
+
+      // Ajouter un jet visuel pour cette cellule
+      activeJets.push({
+        targetX: cell.cx, targetY: cell.cy,
+        born: ts,
+        life: 300 // durée de vie du jet en ms
+      });
+
       revealedIdx++;
     }
 
-    // Dessiner les jets/particules en vol
+    // Dessiner les jets en vol
     ctxP.clearRect(0, 0, particleCanvas.width, particleCanvas.height);
 
     if (progress < 1) {
-      const cannonStartX = cannonX * gameCanvas.width;
       const cannonStartY = gameCanvas.height;
 
-      for (let s = 0; s < NUM_STREAMS; s++) {
-        // Chaque stream cible un pixel différent parmi ceux en cours de révélation
-        const targetIdx = Math.min(
-          Math.floor(revealedIdx + s * 2) % shuffled.length,
-          shuffled.length - 1
-        );
-        const target = shuffled[targetIdx];
+      // Jets actifs
+      for (let i = activeJets.length - 1; i >= 0; i--) {
+        const jet = activeJets[i];
+        const jetAge = ts - jet.born;
+        const jetProgress = Math.min(jetAge / jet.life, 1);
 
-        // Position de la particule le long de l'arc
-        const streamPhase = ((ts * 0.003) + s * 0.4) % 1;
-        const arcHeight = gameCanvas.height * 0.25 + Math.abs(cannonStartX - target.cx) * 0.1;
-        const px = cannonStartX + (target.cx - cannonStartX) * streamPhase;
-        const py = cannonStartY + (target.cy - cannonStartY) * streamPhase - arcHeight * Math.sin(Math.PI * streamPhase);
-        const size = 3 + (1 - streamPhase) * 3;
-
-        // Traînée
-        ctxP.globalAlpha = 0.2;
-        ctxP.fillStyle = colorRGB;
-        for (let trail = 1; trail <= 2; trail++) {
-          const tt = Math.max(0, streamPhase - trail * 0.06);
-          const tpx = cannonStartX + (target.cx - cannonStartX) * tt;
-          const tpy = cannonStartY + (target.cy - cannonStartY) * tt - arcHeight * Math.sin(Math.PI * tt);
-          ctxP.beginPath();
-          ctxP.arc(tpx, tpy, size * 0.4, 0, Math.PI * 2);
-          ctxP.fill();
+        if (jetProgress >= 1) {
+          activeJets.splice(i, 1);
+          continue;
         }
 
-        // Particule principale
-        ctxP.globalAlpha = 0.8;
+        // Arc du canon vers la cible
+        const jx = cannonPixelX + (jet.targetX - cannonPixelX) * jetProgress;
+        const arcH = gameCanvas.height * 0.2 + Math.abs(cannonPixelX - jet.targetX) * 0.1;
+        const jy = cannonStartY + (jet.targetY - cannonStartY) * jetProgress - arcH * Math.sin(Math.PI * jetProgress);
+        const size = 4 * (1 - jetProgress * 0.5);
+
+        // Traînée
+        ctxP.globalAlpha = 0.2 * (1 - jetProgress);
         ctxP.fillStyle = colorRGB;
+        const trailT = Math.max(0, jetProgress - 0.1);
+        const tx = cannonPixelX + (jet.targetX - cannonPixelX) * trailT;
+        const ty = cannonStartY + (jet.targetY - cannonStartY) * trailT - arcH * Math.sin(Math.PI * trailT);
         ctxP.beginPath();
-        ctxP.arc(px, py, size, 0, Math.PI * 2);
+        ctxP.arc(tx, ty, size * 0.4, 0, Math.PI * 2);
         ctxP.fill();
 
-        // Glow
-        ctxP.globalAlpha = 0.3;
-        ctxP.fillStyle = 'white';
+        // Particule
+        ctxP.globalAlpha = 0.8 * (1 - jetProgress * 0.6);
+        ctxP.fillStyle = colorRGB;
         ctxP.beginPath();
-        ctxP.arc(px, py, size * 0.6, 0, Math.PI * 2);
+        ctxP.arc(jx, jy, size, 0, Math.PI * 2);
         ctxP.fill();
+
+        // Impact flash
+        if (jetProgress > 0.8) {
+          ctxP.globalAlpha = 0.5 * (1 - jetProgress);
+          ctxP.fillStyle = 'white';
+          ctxP.beginPath();
+          ctxP.arc(jet.targetX, jet.targetY, revealR * 0.6, 0, Math.PI * 2);
+          ctxP.fill();
+        }
       }
 
       ctxP.globalAlpha = 1;
       requestAnimationFrame(animate);
     } else {
       // Révéler tout ce qui reste
-      while (revealedIdx < shuffled.length) {
-        const cell = shuffled[revealedIdx];
+      while (revealedIdx < sorted.length) {
+        const cell = sorted[revealedIdx];
         ctxScratch.globalCompositeOperation = 'destination-out';
         ctxScratch.beginPath();
         ctxScratch.arc(cell.cx, cell.cy, revealR, 0, Math.PI * 2);
@@ -3736,7 +3766,6 @@ function cannonFireAtCells(cells, colorRGB, onAllLanded) {
         revealedIdx++;
       }
 
-      // Fini
       ctxP.clearRect(0, 0, particleCanvas.width, particleCanvas.height);
       cannonFiring = false;
       cannonMoving = false;
