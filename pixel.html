@@ -414,8 +414,10 @@
   }
 
   // Build fire plan for a cannon: all unplaced cells of its color, row by row
+  // Exclude white (W) cells — background filler, not part of the image
   function makePlan(cn) {
     const plan = [];
+    if (cn.color === 'W') return plan; // skip white cannons entirely
     for (let r = 0; r < N; r++)
       for (let c = 0; c < N; c++)
         if (T[r][c] === cn.color && !placed[r][c]) plan.push({r, c});
@@ -585,7 +587,7 @@
     for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) if (placed[r][c]) d++;
     return {d, t: N * N};
   }
-  function avail() { return cannons.filter(c => !c.inZone && !c.done && c.rem > 0); }
+  function avail() { return cannons.filter(c => !c.inZone && !c.done && c.rem > 0 && c.color !== 'W'); }
 
   // Pre-load audio once
   let popAudio = null;
