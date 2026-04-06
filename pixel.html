@@ -166,18 +166,23 @@
   .wz-cannon {
     position:absolute; top:50%; transform:translateY(-50%);
     display:flex; align-items:center; gap:4px;
-    padding:4px 8px; border-radius:8px; background:var(--surface);
+    padding:6px 12px; border-radius:10px; background:var(--surface);
     box-shadow:0 2px 8px rgba(0,0,0,.4);
     z-index:2; white-space:nowrap; cursor:default;
   }
+
+.wz-cannon {
+  position: absolute;
+  z-index: 20; /* 🔥 au-dessus de TOUT */
+}
   .wz-cannon.shooting { box-shadow:0 0 12px rgba(255,107,74,.6); }
-  .wz-dot { width:14px; height:14px; border-radius:4px; flex-shrink:0; }
+  .wz-dot { width:24px; height:24px; border-radius:6px; flex-shrink:0; }
   .wz-dot.bW  { background:var(--col-W); }
   .wz-dot.bDB { background:var(--col-DB); }
   .wz-dot.bLB { background:var(--col-LB); }
   .wz-dot.bP  { background:var(--col-P); }
   .wz-dot.bK  { background:var(--col-K); }
-  .wz-count { font-family:'Fredoka',sans-serif; font-size:.65rem; font-weight:700; color:var(--text); }
+  .wz-count { font-family:'Fredoka',sans-serif; font-size:1rem; font-weight:800; color:var(--text); }
   /* flying pixel animation */
   .fly-pixel {
     position: fixed;
@@ -958,18 +963,30 @@
   }
 
   // Clic ligne principale → envoyer sur le tapis
-  function onMainClick(cn, slotIdx) {
-    if (gameOver || cn.inZone) return;
-    if (beltCannons.length >= MAX_BELT) {
-      trigGameOver('5 canons sur le tapis — Game Over !');
-      return;
-    }
-    // Retirer de la ligne principale
-    mainLine[slotIdx] = null;
-    sendToBelt(cn);
-    // Slot maintenant vide : le joueur doit choisir un canon de la réserve
-    renderCannonLines();
+ function onMainClick(cn, slotIdx) {
+  if (gameOver || cn.inZone) return;
+
+  if (beltCannons.length >= MAX_BELT) {
+    trigGameOver('5 canons sur le tapis — Game Over !');
+    return;
   }
+
+  // envoyer sur le tapis
+  sendToBelt(cn);
+
+  // 🔥 CASCADE automatique
+  if (reserveLine.length > 0) {
+    mainLine[slotIdx] = reserveLine[slotIdx] || reserveLine[0];
+reserveLine.splice(slotIdx, 1);
+  } else {
+    mainLine[slotIdx] = null;
+  }
+
+  // remplir la réserve depuis la pile cachée
+  autoFillReserve();
+
+  renderCannonLines();
+}
 
   // Clic réserve → monter vers le premier slot vide de la ligne principale
   function onReserveClick(cn, resIdx) {
