@@ -150,7 +150,14 @@
     box-shadow:0 2px 8px rgba(0,0,0,.4);
     animation:slotIn 220ms cubic-bezier(.34,1.56,.64,1) both;
   }
-  @keyframes slotIn { 0%{transform:scale(.6);opacity:0} 100%{transform:scale(1);opacity:1} }
+  .fire-slot.fusion {
+    animation: fusionPop 0.4s ease-out;
+  }
+  @keyframes fusionPop {
+    0%   { transform: scale(1);    box-shadow: 0 0 0 rgba(255,200,50,0); }
+    40%  { transform: scale(1.25); box-shadow: 0 0 18px rgba(255,200,50,.9); }
+    100% { transform: scale(1);    box-shadow: 0 0 0 rgba(255,200,50,0); }
+  }
   .fire-slot .fs-dot { width:22px; height:22px; border-radius:6px; }
   .fire-slot .fs-count { font-family:'Fredoka',sans-serif; font-size:.65rem; font-weight:700; color:var(--text); }
   .wz-count-badge {
@@ -275,6 +282,7 @@
   <div style="display:flex;gap:6px;padding:0 14px 6px;flex-shrink:0;">
     <button class="level-btn active" id="lvl0" onclick="switchLevel(0)">🐾 Stitch</button>
     <button class="level-btn" id="lvl1" onclick="switchLevel(1)">🍜 Ramen</button>
+    <button class="level-btn" id="lvl2" onclick="switchLevel(2)">⭐ Étoile</button>
   </div>
 
   <div class="grid-section">
@@ -324,6 +332,7 @@
   const LEVELS = [
     {
       name: 'Stitch',
+      maxShots: 10,
       colors: {
         W:{n:'Blanc',   b:'bW', c:'cW', hex:'#f0f0f0'},
         DB:{n:'Marine', b:'bDB',c:'cDB',hex:'#14288C'},
@@ -356,6 +365,7 @@
     },
     {
       name: 'Ramen',
+      maxShots: 10,
       colors: {
         W:{n:'Blanc',      b:'bW', c:'cW', hex:'#f0f0f0'},
         K:{n:'Noir',       b:'bK', c:'cK', hex:'#141414'},
@@ -387,6 +397,43 @@
         ['W','W','K','LB','LB','LB','LB','LB','LB','LB','LB','LB','LB','LB','LB','K','W','W','W','W'],
         ['W','W','W','K','LB','LB','LB','LB','LB','LB','LB','LB','LB','LB','K','W','W','W','W','W'],
         ['W','W','W','W','K','K','K','K','K','K','K','K','K','W','W','W','W','W','W','W'],
+      ]
+    },
+    {
+      name: 'Étoile',
+      maxShots: 8,
+      colors: {
+        W: {n:'Blanc',     b:'bW',  c:'cW',  hex:'#f0f0f0'},
+        K: {n:'Noir',      b:'bK',  c:'cK',  hex:'#141414'},
+        R: {n:'Rouge',     b:'bR',  c:'cR',  hex:'#EE1111'},
+        O: {n:'Orange',    b:'bO',  c:'cO',  hex:'#FF8800'},
+        Y: {n:'Jaune',     b:'bY',  c:'cY',  hex:'#FFEE00'},
+        G: {n:'Vert',      b:'bG',  c:'cG',  hex:'#22CC44'},
+        LB:{n:'Bleu clair',b:'bLB', c:'cLB', hex:'#22CCEE'},
+        DB:{n:'Bleu',      b:'bDB', c:'cDB', hex:'#2244EE'},
+        PK:{n:'Rose',      b:'bPK', c:'cPK', hex:'#FF66BB'},
+      },
+      grid: [
+        ['W','W','W','W','W','W','W','W','W','W','W','W','W','W','W','W','W','W','W','W'],
+        ['W','W','W','W','W','W','W','W','W','W','W','W','W','W','W','W','W','W','W','W'],
+        ['W','W','W','W','W','W','W','W','K','K','W','W','W','W','W','W','W','W','W','W'],
+        ['W','W','W','W','W','W','W','K','R','R','K','W','W','W','W','W','W','W','W','W'],
+        ['W','W','W','W','W','W','K','R','R','O','O','K','W','W','W','W','W','W','W','W'],
+        ['W','W','W','W','W','W','K','R','O','O','Y','Y','K','W','W','W','W','W','W','W'],
+        ['W','W','W','W','W','K','R','R','O','Y','Y','G','LB','K','W','W','W','W','W','W'],
+        ['K','K','K','K','K','K','R','O','Y','Y','G','G','LB','LB','K','K','K','K','W','W'],
+        ['W','K','R','R','R','O','O','Y','Y','G','G','LB','LB','DB','DB','K','K','W','W','W'],
+        ['W','K','R','R','O','O','Y','Y','G','G','LB','LB','DB','DB','K','W','W','W','W','W'],
+        ['W','W','K','R','O','O','Y','G','G','LB','LB','DB','DB','K','W','W','W','W','W','W'],
+        ['W','W','K','R','O','Y','Y','G','G','LB','LB','DB','K','W','W','W','W','W','W','W'],
+        ['W','W','W','K','O','Y','G','G','LB','LB','DB','K','W','W','W','W','W','W','W','W'],
+        ['W','W','W','K','Y','Y','G','G','LB','DB','DB','K','W','K','K','K','W','W','W','W'],
+        ['W','W','W','W','K','Y','G','G','LB','DB','K','W','K','DB','DB','K','W','W','W','W'],
+        ['W','W','W','W','K','K','G','G','LB','K','W','W','K','DB','PK','K','W','W','W','W'],
+        ['W','W','W','W','W','K','G','LB','K','W','W','W','W','K','PK','K','W','W','W','W'],
+        ['W','W','W','W','W','K','K','K','W','W','W','W','W','W','K','K','W','W','W','W'],
+        ['W','W','W','W','W','W','W','W','W','W','W','W','W','W','W','W','W','W','W','W'],
+        ['W','W','W','W','W','W','W','W','W','W','W','W','W','W','W','W','W','W','W','W'],
       ]
     }
   ];
@@ -525,6 +572,73 @@
     updateBeltCount();
     renderCannonLines();
     scheduleFire(slot);
+
+    // Vérifier fusion : si 3 canons de la même couleur dans la zone → fusionner
+    checkFusion(cn.color);
+  }
+
+  // Couleurs actuellement en état fusionné dans la zone de tir
+  const fusedColors = new Set();
+
+  function checkFusion(color) {
+    const sameSlots = fireSlots.filter(s => s.cannon && s.cannon.color === color && !s.cannon.done);
+
+    // Cas 1 : fusion déjà active pour cette couleur → absorber le nouveau
+    if (fusedColors.has(color) && sameSlots.length >= 2) {
+      const keepSlot = sameSlots[0];
+      const keepCannon = keepSlot.cannon;
+      const totalRem = sameSlots.reduce((sum, s) => sum + s.cannon.rem, 0);
+
+      for (const s of sameSlots.slice(1)) {
+        if (s.timer) { clearTimeout(s.timer); s.timer = null; }
+        const c = s.cannon;
+        c.inZone = false; c.done = true;
+        const idx = beltCannons.indexOf(c);
+        if (idx !== -1) beltCannons.splice(idx, 1);
+        firePlanMap.delete(c.id);
+        s.cannon = null;
+        s.el.className = 'fire-slot';
+        s.el.innerHTML = '';
+      }
+
+      keepCannon.rem = totalRem;
+      firePlanMap.set(keepCannon.id, makePlanAll(keepCannon));
+      keepSlot.el.classList.add('fusion');
+      setTimeout(() => keepSlot.el.classList.remove('fusion'), 400);
+      renderSlot(keepSlot);
+      updateBeltCount();
+      renderCannonLines();
+      return;
+    }
+
+    // Cas 2 : 3 canons ou plus → déclencher la fusion
+    if (sameSlots.length < 3) return;
+
+    fusedColors.add(color); // marquer cette couleur comme fusionnée
+
+    const keepSlot = sameSlots[0];
+    const keepCannon = keepSlot.cannon;
+    const totalRem = sameSlots.reduce((sum, s) => sum + s.cannon.rem, 0);
+
+    for (const s of sameSlots.slice(1)) {
+      if (s.timer) { clearTimeout(s.timer); s.timer = null; }
+      const c = s.cannon;
+      c.inZone = false; c.done = true;
+      const idx = beltCannons.indexOf(c);
+      if (idx !== -1) beltCannons.splice(idx, 1);
+      firePlanMap.delete(c.id);
+      s.cannon = null;
+      s.el.className = 'fire-slot';
+      s.el.innerHTML = '';
+    }
+
+    keepCannon.rem = totalRem;
+    firePlanMap.set(keepCannon.id, makePlanAll(keepCannon));
+    keepSlot.el.classList.add('fusion');
+    setTimeout(() => keepSlot.el.classList.remove('fusion'), 400);
+    renderSlot(keepSlot);
+    updateBeltCount();
+    renderCannonLines();
   }
 
   function renderSlot(slot) {
@@ -625,6 +739,9 @@
     if (slot.timer) { clearTimeout(slot.timer); slot.timer = null; }
     const cn = slot.cannon;
     if (!cn) return;
+    // Si c'était le dernier canon fusionné de cette couleur, réinitialiser
+    const remainingSame = fireSlots.filter(s => s !== slot && s.cannon && s.cannon.color === cn.color);
+    if (remainingSame.length === 0) fusedColors.delete(cn.color);
     cn.inZone = false; cn.done = true;
     const idx = beltCannons.indexOf(cn);
     if (idx !== -1) beltCannons.splice(idx, 1);
@@ -728,9 +845,10 @@
         for (let c = 0; c < N; c++)
           if (T[r][c] === k) tot++;
       if (!tot) continue;
-      const full = Math.floor(tot / MAX_SHOTS);
-      const rest = tot % MAX_SHOTS;
-      for (let i = 0; i < full; i++) stock[k].push(makeCannon(k, MAX_SHOTS));
+      const ms = LEVELS[currentLevel].maxShots || MAX_SHOTS;
+      const full = Math.floor(tot / ms);
+      const rest = tot % ms;
+      for (let i = 0; i < full; i++) stock[k].push(makeCannon(k, ms));
       if (rest > 0) stock[k].push(makeCannon(k, rest));
     }
 
@@ -931,6 +1049,7 @@
     _nextId     = 0;
     beltCannons = [];
     firePlanMap  = new Map();
+    fusedColors.clear();
 
     // Vider les slots de tir
     for (const slot of fireSlots) {
