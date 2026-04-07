@@ -497,11 +497,10 @@
         gOv = $('goOverlay'), gM = $('goMsg'),
         rB = $('railBorder'), stEl = $('status');
 
-  // ── FIRE ZONE (5 slots statiques) ─────────────────────────────────────────
-  const FIRE_COOLDOWN = 150; // ms entre chaque tir par canon
+  // ── FIRE ZONE ─────────────────────────────────────────────────────────────
+  const FIRE_COOLDOWN = 150;
   const fireZoneEl = $('fireZone');
 
-  // Initialiser les 5 slots
   const fireSlots = Array.from({length: MAX_BELT}, (_, i) => {
     const el = document.createElement('div');
     el.className = 'fire-slot';
@@ -518,18 +517,13 @@
     if (gameOver) return;
     const slot = getFreeSlot();
     if (!slot) { trigGameOver('5 canons en tir — Game Over !'); return; }
-
     cn.inZone = true;
     slot.cannon = cn;
     beltCannons.push(cn);
     firePlanMap.set(cn.id, makePlanAll(cn));
-
-    // Rendu du slot
     renderSlot(slot);
     updateBeltCount();
     renderCannonLines();
-
-    // Démarrer le tir automatique
     scheduleFire(slot);
   }
 
@@ -538,13 +532,10 @@
     if (!cn) {
       slot.el.className = 'fire-slot';
       slot.el.innerHTML = '';
-      return;
+    } else {
+      slot.el.className = 'fire-slot occupied';
+      slot.el.innerHTML = `<div class="fs-dot ${CI[cn.color].b}"></div><div class="fs-count">${cn.rem}</div>`;
     }
-    slot.el.className = 'fire-slot occupied';
-    slot.el.innerHTML = `
-      <div class="fs-dot ${CI[cn.color].b}"></div>
-      <div class="fs-count">${cn.rem}</div>
-    `;
   }
 
   function scheduleFire(slot) {
@@ -553,26 +544,80 @@
   }
 
   function doFire(slot) {
+    slot.timer = null;
     const cn = slot.cannon;
     if (!cn || gameOver) return;
 
     const plan = firePlanMap.get(cn.id);
-    if (!plan) return;
+    if (!plan) { removeFromFireZone(slot); return; }
 
-    // Nettoyer les pixels déjà placés ou pas sur la ligne courante
+    // Nettoyer pixels déjà placés ou sur lignes passées
     while (plan.length && (placed[plan[0].r][plan[0].c] || plan[0].r < currentRow)) plan.shift();
 
-    // Chercher le prochain pixel de la ligne courante
-    const target = plan.find(p => p.r === currentRow && !placed[p.r][p.c]);
-    if (!target) {
-      // Rien à tirer sur la ligne courante — attendre
-      slot.timer = setTimeout(() => doFire(slot), 300);
+    if (!plan.length) {
+      removeFromFireZone(slot);
       return;
     }
 
-    // Retirer de la liste
+    // Chercher un pixel sur la ligne courante
+    const target = plan.find(p => p.r === currentRow && !placed[p.r][p.c]);
+    if (!target) {
+      // Rien sur cette ligne, attendre
+      slot.timer = setTimeout(() => doFire(slot), 200);
+      return;
+    }
+
     plan.splice(plan.indexOf(target), 1);
-    firePixel(slot, cn, target.r, target.c);
+
+    // Décrémenter immédiatement
+    cn.rem--;
+    shots++;
+    if (cn.rem <= 0) cn.done = true;
+
+    const fsCount = slot.el.querySelector('.fs-count');
+    if (fsCount) fsCount.textContent = cn.rem;
+
+    // Animation pixel
+    const cellEl = gridEl.children[target.r * N + target.c];
+    if (slot.el && cellEl) {
+      const cr = slot.el.getBoundingClientRect();
+      const gr = cellEl.getBoundingClientRect();
+      const sx = cr.left + cr.width/2 - 4, sy = cr.top + cr.height/2 - 4;
+      const px = document.createElement('div');
+      px.className = 'fly-pixel';
+      px.style.cssText = `left:${sx}px;top:${sy}px;background:var(--col-${cn.color});--dx:${(gr.left+gr.width/2-4)-sx}px;--dy:${(gr.top+gr.height/2-4)-sy}px;`;
+      document.body.appendChild(px);
+      setTimeout(() => px.remove(), 300);
+    }
+
+    placed[target.r][target.c] = true;
+    placeCell(target.r, target.c);
+    updStats();
+    playPop();
+
+    // Vérifier victoire
+    const {d, t} = prog();
+    if (d === t) {
+      setTimeout(() => { wS.textContent = shots; wO.classList.add('show'); }, 400);
+      return;
+    }
+
+    // Canon vide ?
+    if (cn.done) {
+      removeFromFireZone(slot);
+      // Vérifier si la ligne est aussi complète
+      if (isRowComplete(currentRow)) advanceRow();
+      return;
+    }
+
+    // Ligne complète ?
+    if (isRowComplete(currentRow)) {
+      advanceRow();
+      return;
+    }
+
+    // Continuer à tirer
+    scheduleFire(slot);
   }
 
   function removeFromFireZone(slot) {
@@ -589,76 +634,43 @@
     renderCannonLines();
   }
 
+  function advanceRow() {
+    const next = firstNonWhiteRow(currentRow + 1);
+    if (next === -1) return;
+    currentRow = next;
+    setSt(`Ligne ${currentRow + 1}`, 'ok');
+    // Stopper tous les timers
+    for (const s of fireSlots) {
+      if (s.timer) { clearTimeout(s.timer); s.timer = null; }
+    }
+    // Relancer tous les slots actifs
+    setTimeout(() => {
+      for (const s of fireSlots) {
+        if (s.cannon && !s.cannon.done) scheduleFire(s);
+      }
+    }, 30);
+  }
+
   function updateFireZonePlans() {
-    // Appelé quand la ligne courante change — relancer les tirs en attente
-    for (const slot of fireSlots) {
-      if (!slot.cannon) continue;
-      // Relancer le tir immédiatement
-      if (slot.timer) clearTimeout(slot.timer);
-      slot.timer = setTimeout(() => doFire(slot), 50);
+    for (const s of fireSlots) {
+      if (!s.cannon || s.cannon.done) continue;
+      if (s.timer) { clearTimeout(s.timer); s.timer = null; }
+      s.timer = setTimeout(() => doFire(s), 50);
     }
   }
 
   function stopAllFire() {
-    for (const slot of fireSlots) {
-      if (slot.timer) { clearTimeout(slot.timer); slot.timer = null; }
+    for (const s of fireSlots) {
+      if (s.timer) { clearTimeout(s.timer); s.timer = null; }
     }
   }
 
-  // ── FIRE PIXEL ─────────────────────────────────────────────────────────────
-
-  function firePixel(slot, cn, r, c) {
-    cn.rem--;
-    shots++;
-    if (cn.rem <= 0) cn.done = true;
-
-    // Update slot display
-    if (slot.el.querySelector('.fs-count'))
-      slot.el.querySelector('.fs-count').textContent = cn.rem;
-
-    // Animation pixel volant
-    const cellEl = gridEl.children[r * N + c];
-    if (slot.el && cellEl) {
-      const cr = slot.el.getBoundingClientRect();
-      const gr = cellEl.getBoundingClientRect();
-      const startX = cr.left + cr.width / 2 - 4;
-      const startY = cr.top  + cr.height / 2 - 4;
-      const dx = (gr.left + gr.width / 2 - 4) - startX;
-      const dy = (gr.top  + gr.height / 2 - 4) - startY;
-      const px = document.createElement('div');
-      px.className = 'fly-pixel';
-      px.style.cssText = `left:${startX}px;top:${startY}px;background:var(--col-${cn.color});--dx:${dx}px;--dy:${dy}px;`;
-      document.body.appendChild(px);
-      setTimeout(() => px.remove(), 300);
-    }
-
-    placed[r][c] = true;
-    placeCell(r, c);
-    updStats();
-    playPop();
-
-    // Canon vide → libérer le slot
-    if (cn.done) {
-      setTimeout(() => removeFromFireZone(slot), 80);
-      return;
-    }
-
-    // Vérifier si ligne courante complète
-    if (isRowComplete(currentRow)) {
-      advanceRow();
-      return; // advanceRow relance les tirs
-    }
-
-    // Planifier le prochain tir
-    scheduleFire(slot);
-  }
-
-  function advanceRow() {
-    let next = firstNonWhiteRow(currentRow + 1);
-    if (next === -1) return;
-    currentRow = next;
-    setSt(`Ligne ${currentRow + 1}`, 'ok');
-    updateFireZonePlans();
+  function updateBeltCount() {
+    const badge = document.getElementById('beltCount');
+    if (!badge) return;
+    const n = beltCannons.length;
+    badge.textContent = n + '/5';
+    badge.classList.toggle('danger', n >= 4);
   }
 
   // ── GAME OVER ─────────────────────────────────────────────────────────────
@@ -668,14 +680,6 @@
     gM.textContent = msg;
     gOv.classList.add('show');
     renderCannonLines();
-  }
-
-  function updateBeltCount() {
-    const badge = document.getElementById('beltCount');
-    if (!badge) return;
-    const n = beltCannons.length;
-    badge.textContent = n + '/5';
-    badge.classList.toggle('danger', n >= 4);
   }
 
   // ── RENDER ────────────────────────────────────────────────────────────────
@@ -892,8 +896,8 @@
       return;
     }
     mainLine[slotIdx] = null;
+    cn._slotIdx = slotIdx; // mémoriser l'index pour la cascade au retour
     sendToFireZone(cn);
-    // Cascade : le canon de la réserve au même index monte automatiquement
     cascadeSlot(slotIdx);
   }
 
