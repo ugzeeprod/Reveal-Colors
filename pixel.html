@@ -605,7 +605,6 @@
     // Canon vide ?
     if (cn.done) {
       removeFromFireZone(slot);
-      // Vérifier si la ligne est aussi complète
       if (isRowComplete(currentRow)) advanceRow();
       return;
     }
@@ -613,6 +612,8 @@
     // Ligne complète ?
     if (isRowComplete(currentRow)) {
       advanceRow();
+      // Continuer à tirer sur la nouvelle ligne
+      scheduleFire(slot);
       return;
     }
 
@@ -639,25 +640,21 @@
     if (next === -1) return;
     currentRow = next;
     setSt(`Ligne ${currentRow + 1}`, 'ok');
-    // Stopper tous les timers
-    for (const s of fireSlots) {
-      if (s.timer) { clearTimeout(s.timer); s.timer = null; }
-    }
-    // Relancer tous les slots actifs
-    setTimeout(() => {
-      for (const s of fireSlots) {
-        if (s.cannon && !s.cannon.done) scheduleFire(s);
-      }
-    }, 30);
+    // Les setInterval continuent — ils verront la nouvelle currentRow au prochain tick
   }
 
-  function updateFireZonePlans() {
-    for (const s of fireSlots) {
-      if (!s.cannon || s.cannon.done) continue;
-      if (s.timer) { clearTimeout(s.timer); s.timer = null; }
-      s.timer = setTimeout(() => doFire(s), 50);
-    }
+  // Watchdog : toutes les 300ms, si la ligne courante est déjà complète, avancer
+  // Couvre le cas où tous les canons en zone de tir ont une autre couleur
+  function startWatchdog() {
+    if (window._watchdog) clearInterval(window._watchdog);
+    window._watchdog = setInterval(() => {
+      if (gameOver) { clearInterval(window._watchdog); return; }
+      if (isRowComplete(currentRow)) {
+        advanceRow();
+      }
+    }, 300);
   }
+
 
   function stopAllFire() {
     for (const s of fireSlots) {
@@ -962,6 +959,7 @@
     renderCannonLines();
     updStats();
     updateBeltCount();
+    startWatchdog();
     document.getElementById('levelTitle').textContent = '🎮 ' + LEVELS[currentLevel].name;
   };
 
