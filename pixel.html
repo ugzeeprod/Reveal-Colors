@@ -123,66 +123,42 @@
     display:flex; flex-direction:column; gap:6px;
   }
 
-  .wz-row { display:flex; align-items:center; gap:6px; }
-  .wz-label {
+  .fire-row { display:flex; align-items:center; gap:6px; }
+  .fire-label {
     font-size:.55rem; color:var(--muted); text-transform:uppercase;
     letter-spacing:.08em; font-weight:700;
     writing-mode:vertical-rl; transform:rotate(180deg);
   }
-  .waiting-zone {
-    position:relative; flex:1; height:50px;
+  .fire-zone {
+    flex:1; display:flex; align-items:center; justify-content:center;
+    gap:6px; min-height:58px; padding:6px 10px;
     background:var(--panel); border-radius:10px;
     border:2px solid rgba(255,255,255,.06);
-    overflow:hidden;
     transition:border-color 300ms;
   }
-  .waiting-zone.active { border-color:var(--accent); }
-  /* belt stripes */
-  .waiting-zone::before {
-    content:''; position:absolute; inset:0; pointer-events:none; z-index:0;
-    background:repeating-linear-gradient(
-      90deg, transparent 0, transparent 16px,
-      rgba(255,255,255,.03) 16px, rgba(255,255,255,.03) 18px
-    );
-    animation:beltMove 1.2s linear infinite;
+  .fire-zone.active { border-color:var(--accent); }
+  .fire-slot {
+    width:54px; height:54px; border-radius:10px;
+    border:2px dashed rgba(255,255,255,.08);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:3px; flex-shrink:0;
+    transition:border-color 200ms, background 200ms;
   }
-  @keyframes beltMove { to { background-position: 18px 0; } }
-  /* tunnel fade caps */
-  .wz-tunnel {
-    position:absolute; top:0; bottom:0; width:24px; z-index:3; pointer-events:none;
-    background:linear-gradient(to right, #16171e 60%, transparent);
+  .fire-slot.occupied {
+    background:var(--surface);
+    border-color:rgba(255,255,255,.15);
+    box-shadow:0 2px 8px rgba(0,0,0,.4);
+    animation:slotIn 220ms cubic-bezier(.34,1.56,.64,1) both;
   }
-  .wz-tunnel.r { right:0; left:auto; background:linear-gradient(to left, #16171e 60%, transparent); }
+  @keyframes slotIn { 0%{transform:scale(.6);opacity:0} 100%{transform:scale(1);opacity:1} }
+  .fire-slot .fs-dot { width:22px; height:22px; border-radius:6px; }
+  .fire-slot .fs-count { font-family:'Fredoka',sans-serif; font-size:.65rem; font-weight:700; color:var(--text); }
   .wz-count-badge {
     font-family:'Fredoka',sans-serif; font-size:.8rem; font-weight:700;
     color:var(--muted); min-width:28px; text-align:center;
     transition: color 200ms;
   }
   .wz-count-badge.danger { color: var(--danger); }
-    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
-    color:var(--muted); font-size:.72rem; font-style:italic; z-index:1;
-  }
-  /* canon card on belt */
-  .wz-cannon {
-    position:absolute; top:50%; transform:translateY(-50%);
-    display:flex; align-items:center; gap:4px;
-    padding:6px 12px; border-radius:10px; background:var(--surface);
-    box-shadow:0 2px 8px rgba(0,0,0,.4);
-    z-index:2; white-space:nowrap; cursor:default;
-  }
-
-.wz-cannon {
-  position: absolute;
-  z-index: 20; /* 🔥 au-dessus de TOUT */
-}
-  .wz-cannon.shooting { box-shadow:0 0 12px rgba(255,107,74,.6); }
-  .wz-dot { width:24px; height:24px; border-radius:6px; flex-shrink:0; }
-  .wz-dot.bW  { background:var(--col-W); }
-  .wz-dot.bDB { background:var(--col-DB); }
-  .wz-dot.bLB { background:var(--col-LB); }
-  .wz-dot.bP  { background:var(--col-P); }
-  .wz-dot.bK  { background:var(--col-K); }
-  .wz-count { font-family:'Fredoka',sans-serif; font-size:1rem; font-weight:800; color:var(--text); }
   /* flying pixel animation */
   .fly-pixel {
     position: fixed;
@@ -309,11 +285,10 @@
   </div>
 
   <div class="bottom">
-    <div class="wz-row">
-      <div class="wz-label">File</div>
-      <div class="waiting-zone" id="wZone">
-        <div class="wz-tunnel l"></div>
-        <div class="wz-tunnel r"></div>
+    <div class="fire-row">
+      <div class="fire-label">Tir</div>
+      <div class="fire-zone" id="fireZone">
+        <!-- 5 slots créés dynamiquement -->
       </div>
       <div class="wz-count-badge" id="beltCount">0/5</div>
     </div>
@@ -516,24 +491,194 @@
   const SLOTS    = 5;
 
   const $ = id => document.getElementById(id);
-  const gridEl = $('grid'), wZ = $('wZone'),
+  const gridEl = $('grid'),
         sS = $('sShots'), sP = $('sProg'),
         wO = $('winOverlay'), wS = $('winShots'),
         gOv = $('goOverlay'), gM = $('goMsg'),
         rB = $('railBorder'), stEl = $('status');
 
-  // ── BELT ─────────────────────────────────────────────────────────────────
-  const BELT_SPEED    = 100;
-  const CARD_W        = 64;
-  const FIRE_COOLDOWN = 120;
+  // ── FIRE ZONE (5 slots statiques) ─────────────────────────────────────────
+  const FIRE_COOLDOWN = 150; // ms entre chaque tir par canon
+  const fireZoneEl = $('fireZone');
 
-  let beltStateMap = new Map(); // id -> { x, lastFired, el }
-  let firePlanMap  = new Map(); // id -> [{r,c}]
-  let beltRAF = null, beltLast = null, cachedTrackW = 300;
+  // Initialiser les 5 slots
+  const fireSlots = Array.from({length: MAX_BELT}, (_, i) => {
+    const el = document.createElement('div');
+    el.className = 'fire-slot';
+    el.dataset.slot = i;
+    fireZoneEl.appendChild(el);
+    return { el, cannon: null, timer: null };
+  });
 
-  const ro = new ResizeObserver(e => { for (const x of e) cachedTrackW = x.contentRect.width; });
+  function getFreeSlot() {
+    return fireSlots.find(s => !s.cannon);
+  }
 
-  // ── HELPERS ───────────────────────────────────────────────────────────────
+  function sendToFireZone(cn) {
+    if (gameOver) return;
+    const slot = getFreeSlot();
+    if (!slot) { trigGameOver('5 canons en tir — Game Over !'); return; }
+
+    cn.inZone = true;
+    slot.cannon = cn;
+    beltCannons.push(cn);
+    firePlanMap.set(cn.id, makePlanAll(cn));
+
+    // Rendu du slot
+    renderSlot(slot);
+    updateBeltCount();
+    renderCannonLines();
+
+    // Démarrer le tir automatique
+    scheduleFire(slot);
+  }
+
+  function renderSlot(slot) {
+    const cn = slot.cannon;
+    if (!cn) {
+      slot.el.className = 'fire-slot';
+      slot.el.innerHTML = '';
+      return;
+    }
+    slot.el.className = 'fire-slot occupied';
+    slot.el.innerHTML = `
+      <div class="fs-dot ${CI[cn.color].b}"></div>
+      <div class="fs-count">${cn.rem}</div>
+    `;
+  }
+
+  function scheduleFire(slot) {
+    if (slot.timer) clearTimeout(slot.timer);
+    slot.timer = setTimeout(() => doFire(slot), FIRE_COOLDOWN);
+  }
+
+  function doFire(slot) {
+    const cn = slot.cannon;
+    if (!cn || gameOver) return;
+
+    const plan = firePlanMap.get(cn.id);
+    if (!plan) return;
+
+    // Nettoyer les pixels déjà placés ou pas sur la ligne courante
+    while (plan.length && (placed[plan[0].r][plan[0].c] || plan[0].r < currentRow)) plan.shift();
+
+    // Chercher le prochain pixel de la ligne courante
+    const target = plan.find(p => p.r === currentRow && !placed[p.r][p.c]);
+    if (!target) {
+      // Rien à tirer sur la ligne courante — attendre
+      slot.timer = setTimeout(() => doFire(slot), 300);
+      return;
+    }
+
+    // Retirer de la liste
+    plan.splice(plan.indexOf(target), 1);
+    firePixel(slot, cn, target.r, target.c);
+  }
+
+  function removeFromFireZone(slot) {
+    if (slot.timer) { clearTimeout(slot.timer); slot.timer = null; }
+    const cn = slot.cannon;
+    if (!cn) return;
+    cn.inZone = false; cn.done = true;
+    const idx = beltCannons.indexOf(cn);
+    if (idx !== -1) beltCannons.splice(idx, 1);
+    firePlanMap.delete(cn.id);
+    slot.cannon = null;
+    renderSlot(slot);
+    updateBeltCount();
+    renderCannonLines();
+  }
+
+  function updateFireZonePlans() {
+    // Appelé quand la ligne courante change — relancer les tirs en attente
+    for (const slot of fireSlots) {
+      if (!slot.cannon) continue;
+      // Relancer le tir immédiatement
+      if (slot.timer) clearTimeout(slot.timer);
+      slot.timer = setTimeout(() => doFire(slot), 50);
+    }
+  }
+
+  function stopAllFire() {
+    for (const slot of fireSlots) {
+      if (slot.timer) { clearTimeout(slot.timer); slot.timer = null; }
+    }
+  }
+
+  // ── FIRE PIXEL ─────────────────────────────────────────────────────────────
+
+  function firePixel(slot, cn, r, c) {
+    cn.rem--;
+    shots++;
+    if (cn.rem <= 0) cn.done = true;
+
+    // Update slot display
+    if (slot.el.querySelector('.fs-count'))
+      slot.el.querySelector('.fs-count').textContent = cn.rem;
+
+    // Animation pixel volant
+    const cellEl = gridEl.children[r * N + c];
+    if (slot.el && cellEl) {
+      const cr = slot.el.getBoundingClientRect();
+      const gr = cellEl.getBoundingClientRect();
+      const startX = cr.left + cr.width / 2 - 4;
+      const startY = cr.top  + cr.height / 2 - 4;
+      const dx = (gr.left + gr.width / 2 - 4) - startX;
+      const dy = (gr.top  + gr.height / 2 - 4) - startY;
+      const px = document.createElement('div');
+      px.className = 'fly-pixel';
+      px.style.cssText = `left:${startX}px;top:${startY}px;background:var(--col-${cn.color});--dx:${dx}px;--dy:${dy}px;`;
+      document.body.appendChild(px);
+      setTimeout(() => px.remove(), 300);
+    }
+
+    placed[r][c] = true;
+    placeCell(r, c);
+    updStats();
+    playPop();
+
+    // Canon vide → libérer le slot
+    if (cn.done) {
+      setTimeout(() => removeFromFireZone(slot), 80);
+      return;
+    }
+
+    // Vérifier si ligne courante complète
+    if (isRowComplete(currentRow)) {
+      advanceRow();
+      return; // advanceRow relance les tirs
+    }
+
+    // Planifier le prochain tir
+    scheduleFire(slot);
+  }
+
+  function advanceRow() {
+    let next = firstNonWhiteRow(currentRow + 1);
+    if (next === -1) return;
+    currentRow = next;
+    setSt(`Ligne ${currentRow + 1}`, 'ok');
+    updateFireZonePlans();
+  }
+
+  // ── GAME OVER ─────────────────────────────────────────────────────────────
+
+  function trigGameOver(msg) {
+    gameOver = true;
+    gM.textContent = msg;
+    gOv.classList.add('show');
+    renderCannonLines();
+  }
+
+  function updateBeltCount() {
+    const badge = document.getElementById('beltCount');
+    if (!badge) return;
+    const n = beltCannons.length;
+    badge.textContent = n + '/5';
+    badge.classList.toggle('danger', n >= 4);
+  }
+
+  // ── RENDER ────────────────────────────────────────────────────────────────
 
   // Pixels non-blancs de la ligne r
   function rowPixels(r) {
@@ -631,33 +776,18 @@
   }
 
   // Remplir les lignes principale et réserve depuis la pile cachée
-  function refillLines() {
-    // réserve d'abord : slots libres = SLOTS - occupés
-    while (reserveLine.length < SLOTS && hiddenPile.length > 0)
-      reserveLine.push(hiddenPile.shift());
-    // principale ensuite (seulement si vide au reset)
-    while (mainLine.length < SLOTS && reserveLine.length > 0) {
-      // Ne rempli la ligne principale automatiquement qu'au reset
-      // En jeu, c'est le joueur qui choisit
-    }
-  }
-
-  // Remplir la réserve automatiquement
-  function autoFillReserve() {
-    while (reserveLine.length < SLOTS && hiddenPile.length > 0)
-      reserveLine.push(hiddenPile.shift());
+  // Montée en cascade : quand le slot i de la ligne principale se vide,
+  // le canon au même index i de la réserve monte automatiquement,
+  // et la réserve se remplit depuis la pile cachée.
+  function cascadeSlot(slotIdx) {
+    // Le canon de la réserve au même index monte en ligne principale
+    const fromReserve = reserveLine[slotIdx] || null;
+    mainLine[slotIdx] = fromReserve;
+    reserveLine[slotIdx] = hiddenPile.length > 0 ? hiddenPile.shift() : null;
     renderCannonLines();
   }
 
-  // Plan de tir d'un canon pour la ligne courante (et futures)
-  function makePlanForRow(cn, r) {
-    const plan = [];
-    for (let c = 0; c < N; c++)
-      if (T[r][c] === cn.color && !placed[r][c]) plan.push({r, c});
-    return plan;
-  }
-
-  // Tous les pixels non placés de la couleur du canon sur les lignes restantes
+  // Plan de tir d'un canon pour les lignes restantes
   function makePlanAll(cn) {
     const plan = [];
     if (cn.color === 'W') return plan;
@@ -667,218 +797,13 @@
     return plan;
   }
 
-  // ── BELT LOGIC ────────────────────────────────────────────────────────────
-
-  function sendToBelt(cn) {
-    if (gameOver) return;
-    if (beltCannons.length >= MAX_BELT) {
-      trigGameOver('Trop de canons sur le tapis !');
-      return;
-    }
-    cn.inZone = true;
-    beltCannons.push(cn);
-
-    // Plan : pixels de la couleur du canon depuis la ligne courante
-    firePlanMap.set(cn.id, makePlanAll(cn));
-
-    // Créer carte tapis
-    const el = document.createElement('div');
-    el.dataset.id = cn.id;
-    el.className = 'wz-cannon';
-    el.innerHTML = `<div class="wz-dot ${CI[cn.color].b}"></div><div class="wz-count">${cn.rem}</div>`;
-    wZ.appendChild(el);
-    const emp = wZ.querySelector('.wz-empty');
-    if (emp) emp.remove();
-    wZ.classList.add('active');
-
-    beltStateMap.set(cn.id, { x: -CARD_W, lastFired: -Infinity, el });
-    startBelt();
-    updateBeltCount();
-    renderCannonLines();
-  }
-
-  function removeFromBelt(cn) {
-    cn.inZone = false; cn.done = true;
-    const idx = beltCannons.indexOf(cn);
-    if (idx !== -1) beltCannons.splice(idx, 1);
-    const el = wZ.querySelector(`[data-id="${cn.id}"]`);
-    if (el) el.remove();
-    beltStateMap.delete(cn.id);
-    firePlanMap.delete(cn.id);
-    if (!beltCannons.length) showEmptyBelt();
-    updateBeltCount();
-    renderCannonLines();
-  }
-
-  function updateBeltCount() {
-    const badge = document.getElementById('beltCount');
-    if (!badge) return;
-    const n = beltCannons.length;
-    badge.textContent = n + '/5';
-    badge.classList.toggle('danger', n >= 4);
-  }
-
-  function showEmptyBelt() {
-    for (const el of [...wZ.querySelectorAll('.wz-cannon')]) el.remove();
-    if (!wZ.querySelector('.wz-empty')) {
-      const s = document.createElement('span');
-      s.className = 'wz-empty'; s.textContent = 'Clique un canon';
-      wZ.appendChild(s);
-    }
-    wZ.classList.remove('active');
-  }
-
-  function startBelt() {
-    if (beltRAF) return;
-    beltLast = null;
-    function tick(ts) {
-      if (!beltLast) beltLast = ts;
-      const dt = Math.min((ts - beltLast) / 1000, 0.05);
-      beltLast = ts;
-      if (!beltCannons.length) { beltRAF = null; showEmptyBelt(); return; }
-      const trackW = cachedTrackW || 300;
-
-      for (const cn of [...beltCannons]) {
-        const st = beltStateMap.get(cn.id);
-        if (!st) continue;
-        st.x += BELT_SPEED * dt;
-        if (st.x > trackW) st.x = -CARD_W;
-        if (st.el) st.el.style.left = st.x + 'px';
-
-        if (st.x < 0 || st.x + CARD_W > trackW) continue;
-
-        const plan = firePlanMap.get(cn.id);
-        if (!plan) continue;
-
-        // Nettoyer les pixels déjà placés
-        while (plan.length && placed[plan[0].r][plan[0].c]) plan.shift();
-
-        // Ne tirer que sur la ligne courante
-        while (plan.length && plan[0].r < currentRow) plan.shift();
-
-        if (!plan.length) {
-          // Plus rien à tirer pour ce canon
-          removeFromBelt(cn);
-          continue;
-        }
-
-        // Ne tirer que si la cellule est sur la ligne courante
-        if (plan[0].r !== currentRow) continue;
-
-        if (ts - st.lastFired < FIRE_COOLDOWN) continue;
-
-        const {r, c} = plan.shift();
-        st.lastFired = ts;
-        firePixel(cn, r, c);
-      }
-      beltRAF = requestAnimationFrame(tick);
-    }
-    beltRAF = requestAnimationFrame(tick);
-  }
-
-  function stopBelt() {
-    if (beltRAF) { cancelAnimationFrame(beltRAF); beltRAF = null; }
-  }
-
-  // ── FIRE ──────────────────────────────────────────────────────────────────
-
-  function firePixel(cn, r, c) {
-    cn.rem--;
-    shots++;
-    const cardEl = wZ.querySelector(`[data-id="${cn.id}"]`);
-    if (cardEl) cardEl.querySelector('.wz-count').textContent = cn.rem;
-    if (cn.rem <= 0) cn.done = true;
-
-    // Animation
-    const cannonEl = wZ.querySelector(`[data-id="${cn.id}"]`);
-    const cellEl   = gridEl.children[r * N + c];
-    if (cannonEl && cellEl) {
-      const cr = cannonEl.getBoundingClientRect();
-      const gr = cellEl.getBoundingClientRect();
-      const startX = cr.left + cr.width / 2 - 4;
-      const startY = cr.top  + cr.height / 2 - 4;
-      const dx = (gr.left + gr.width / 2 - 4) - startX;
-      const dy = (gr.top  + gr.height / 2 - 4) - startY;
-      const px = document.createElement('div');
-      px.className = 'fly-pixel';
-      px.style.cssText = `left:${startX}px;top:${startY}px;background:var(--col-${cn.color});--dx:${dx}px;--dy:${dy}px;`;
-      document.body.appendChild(px);
-      setTimeout(() => px.remove(), 300);
-    }
-
-    placed[r][c] = true;
-    placeCell(r, c);
-    updStats();
-    playPop();
-
-    // Canon vide → retirer du tapis
-    if (cn.done) {
-      setTimeout(() => removeFromBelt(cn), 50);
-    }
-
-    // Vérifier si la ligne courante est complète
-    if (isRowComplete(currentRow)) {
-      advanceRow();
-    }
-
-    // Vérifier victoire
-    const {d, t} = prog();
-    if (d === t) {
-      setTimeout(() => { wS.textContent = shots; wO.classList.add('show'); }, 400);
-    }
-  }
-
-  function advanceRow() {
-    // Chercher la prochaine ligne non-blanche non-complète
-    let next = firstNonWhiteRow(currentRow + 1);
-    if (next === -1) return; // toutes les lignes sont finies
-    currentRow = next;
-    setSt(`Ligne ${currentRow + 1}`, 'ok');
-    highlightRow(currentRow);
-
-    // Mettre à jour les plans des canons sur le tapis
-    for (const cn of beltCannons) {
-      const plan = firePlanMap.get(cn.id);
-      if (!plan) continue;
-      // Ajouter les pixels de la nouvelle ligne
-      for (let c = 0; c < N; c++)
-        if (T[currentRow][c] === cn.color && !placed[currentRow][c])
-          if (!plan.find(p => p.r === currentRow && p.c === c))
-            plan.push({r: currentRow, c});
-    }
-  }
-
-  function highlightRow(r) {
-    // Mettre en évidence la ligne courante dans la grille
-    for (let row = 0; row < N; row++) {
-      for (let c = 0; c < N; c++) {
-        const el = gridEl.children[row * N + c];
-        if (el) el.classList.toggle('current-row', row === r);
-      }
-    }
-  }
-
-  // ── GAME OVER ─────────────────────────────────────────────────────────────
-
-  function trigGameOver(msg) {
-    gameOver = true;
-    gM.textContent = msg;
-    gOv.classList.add('show');
-    renderCannonLines();
-  }
-
-  // ── RENDER ────────────────────────────────────────────────────────────────
-
   function prog() {
-    let d = 0;
+    let d = 0, t = 0;
     for (let r = 0; r < N; r++)
-      for (let c = 0; c < N; c++)
-        if (placed[r][c]) d++;
-    // total = pixels non-blancs
-    let t = 0;
-    for (let r = 0; r < N; r++)
-      for (let c = 0; c < N; c++)
+      for (let c = 0; c < N; c++) {
         if (T[r][c] !== 'W') t++;
+        if (placed[r][c]) d++;
+      }
     return {d, t};
   }
 
@@ -914,7 +839,7 @@
     }
   }
 
-  // Rendu des 2 lignes de canons + réserve
+  // Rendu des 2 lignes de canons (principale + réserve), slot par slot alignés
   function renderCannonLines() {
     const cBox = $('cannonsBox');
     cBox.innerHTML = '';
@@ -941,7 +866,7 @@
     }
     cBox.appendChild(mainRow);
 
-    // Ligne réserve
+    // Ligne réserve (alignée par index)
     const resRow = document.createElement('div');
     resRow.className = 'cannons-row reserve-row';
     for (let i = 0; i < SLOTS; i++) {
@@ -952,9 +877,6 @@
         const el = document.createElement('div');
         el.className = 'cannon reserve';
         el.innerHTML = `<div class="cannon-barrel ${CI[cn.color].b}"></div><div class="cannon-ammo">${cn.rem}</div>`;
-
-        // Clic sur réserve : monter vers un slot vide de la ligne principale
-        el.addEventListener('click', () => onReserveClick(cn, i));
         slot.appendChild(el);
       }
       resRow.appendChild(slot);
@@ -962,42 +884,17 @@
     cBox.appendChild(resRow);
   }
 
-  // Clic ligne principale → envoyer sur le tapis
- function onMainClick(cn, slotIdx) {
-  if (gameOver || cn.inZone) return;
-
-  if (beltCannons.length >= MAX_BELT) {
-    trigGameOver('5 canons sur le tapis — Game Over !');
-    return;
-  }
-
-  // envoyer sur le tapis
-  sendToBelt(cn);
-
-  // 🔥 CASCADE automatique
-  if (reserveLine.length > 0) {
-    mainLine[slotIdx] = reserveLine[slotIdx] || reserveLine[0];
-reserveLine.splice(slotIdx, 1);
-  } else {
+  // Clic ligne principale → envoyer en zone de tir + cascade automatique
+  function onMainClick(cn, slotIdx) {
+    if (gameOver || cn.inZone) return;
+    if (beltCannons.length >= MAX_BELT) {
+      trigGameOver('5 canons en tir — Game Over !');
+      return;
+    }
     mainLine[slotIdx] = null;
-  }
-
-  // remplir la réserve depuis la pile cachée
-  autoFillReserve();
-
-  renderCannonLines();
-}
-
-  // Clic réserve → monter vers le premier slot vide de la ligne principale
-  function onReserveClick(cn, resIdx) {
-    if (gameOver) return;
-    // Chercher un slot vide dans la ligne principale
-    const emptySlot = mainLine.findIndex(s => !s || s.done);
-    if (emptySlot === -1) return; // pas de slot libre
-    mainLine[emptySlot] = cn;
-    reserveLine.splice(resIdx, 1);
-    autoFillReserve();
-    renderCannonLines();
+    sendToFireZone(cn);
+    // Cascade : le canon de la réserve au même index monte automatiquement
+    cascadeSlot(slotIdx);
   }
 
   // ── AUDIO ─────────────────────────────────────────────────────────────────
@@ -1023,10 +920,8 @@ reserveLine.splice(slotIdx, 1);
   };
 
   window.resetGame = function(idx) {
-    stopBelt();
+    stopAllFire();
     if (idx !== undefined) loadLevel(idx);
-    ro.observe(wZ);
-    cachedTrackW = wZ.getBoundingClientRect().width || 300;
 
     // Reset state
     placed      = Array.from({length: N}, () => Array(N).fill(false));
@@ -1034,9 +929,14 @@ reserveLine.splice(slotIdx, 1);
     gameOver    = false;
     _nextId     = 0;
     beltCannons = [];
-    beltStateMap = new Map();
     firePlanMap  = new Map();
-    for (const el of [...wZ.querySelectorAll('.wz-cannon')]) el.remove();
+
+    // Vider les slots de tir
+    for (const slot of fireSlots) {
+      if (slot.timer) { clearTimeout(slot.timer); slot.timer = null; }
+      slot.cannon = null;
+      renderSlot(slot);
+    }
 
     // Trouver la première ligne non-blanche
     currentRow = firstNonWhiteRow(0);
@@ -1044,11 +944,9 @@ reserveLine.splice(slotIdx, 1);
     // Construire la pile ordonnée par utilité ligne par ligne
     const pile = buildOrderedPile();
 
-    // Ligne principale = les 5 premiers canons de la pile (variés, utiles dès maintenant)
-    mainLine    = pile.splice(0, SLOTS).concat(Array(SLOTS).fill(null)).slice(0, SLOTS);
-    // Réserve = les 5 suivants
-    reserveLine = pile.splice(0, SLOTS).concat(Array(SLOTS).fill(null)).slice(0, SLOTS);
-    // Le reste dans la pile cachée
+    // Ligne principale = slots 0..4, réserve = slots 0..4 (alignés par index)
+    mainLine    = Array.from({length: SLOTS}, () => pile.shift() || null);
+    reserveLine = Array.from({length: SLOTS}, () => pile.shift() || null);
     hiddenPile  = pile;
 
     wO.classList.remove('show');
@@ -1059,7 +957,7 @@ reserveLine.splice(slotIdx, 1);
     renderGrid();
     renderCannonLines();
     updStats();
-    showEmptyBelt();
+    updateBeltCount();
     document.getElementById('levelTitle').textContent = '🎮 ' + LEVELS[currentLevel].name;
   };
 
