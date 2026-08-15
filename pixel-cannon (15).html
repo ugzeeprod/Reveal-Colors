@@ -1,0 +1,2556 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
+<title>Pixel Cannon — Stitch</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Outfit:wght@400;600;800&display=swap');
+
+  :root {
+    --cell: min(3.2vw, 22px);
+    --gap: 0px;
+    --fs: 32px;
+    --bg: #0d0e13;
+    --panel: #16171e;
+    --surface: #1e1f28;
+    --text: #eaeaf2;
+    --muted: #7a7e8f;
+    --accent: #ff6b4a;
+    --success: #4ade80;
+    --danger: #f87171;
+    --col-W: #f0f0f0;
+    --col-DB: #14288C;
+    --col-LB: #28AADC;
+    --col-P: #F0AAB4;
+    --col-K: #141414;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body {
+    background: var(--bg); color: var(--text);
+    font-family: 'Outfit', sans-serif;
+    overflow: hidden; height:100vh; height:100dvh;
+  }
+
+  .app {
+    display:flex; flex-direction:column;
+    height:100vh; height:100dvh;
+    max-width:520px; margin:0 auto;
+  }
+
+  .header {
+    display:flex; align-items:center; justify-space-between;
+    padding:8px 14px; flex-shrink:0;
+  }
+  .header h1 {
+    font-family:'Fredoka',sans-serif; font-size:1.1rem; font-weight:700;
+    background:linear-gradient(135deg,#28AADC,#F0AAB4,#ff6b4a);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+  }
+  .stats { display:flex; gap:12px; font-size:.75rem; color:var(--muted); }
+  .stats b { color:var(--text); }
+  .stats .hl { color:var(--success); font-weight:700; }
+
+  .grid-section {
+    flex:1 1 auto;
+    display:flex; align-items:center; justify-content:center;
+    padding:2px 8px; min-height:0; overflow:hidden;
+  }
+
+  .grid-outer {
+    position:relative;
+    background:var(--panel); border-radius:14px; padding:14px;
+    box-shadow:0 6px 24px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.04);
+  }
+  .rail-border {
+    position:absolute; inset:4px;
+    border:3px solid #2a2c38;
+    border-radius:11px; pointer-events:none; z-index:5;
+    transition:border-color 300ms;
+  }
+  .rail-border.active { border-color:var(--accent); }
+
+  .grid {
+    display:grid;
+    grid-template-columns:repeat(20,var(--cell));
+    grid-auto-rows:var(--cell);
+    gap:var(--gap); position:relative; z-index:1;
+  }
+
+  .gc { border-radius:0; position:relative; background:#2a2b33; }
+  /* Mode mystère : le modèle est caché, toutes les cases vides sont neutres */
+  .grid.mystery .gc { background:#26272e; }
+  /* Case vide (fond, pas dans le dessin) : invisible en mode normal... */
+  .gc-void { background:transparent; }
+  /* ...mais en mode mystère elle prend la même teinte que les cases du dessin,
+     pour que le contour de la silhouette (ex: l'ourson) ne se voie plus. */
+  .grid.mystery .gc-void { background:#26272e; }
+  .peek-btn { margin-left:auto; }
+  .stage-info { display:flex; align-items:center; gap:8px; font-weight:700; font-size:14px; }
+  .tier-badge { font-size:10px; padding:3px 9px; border-radius:10px; font-weight:800; letter-spacing:.5px; }
+  .tier-badge.facile    { background:#1db95426; color:#3ce87c; }
+  .tier-badge.moyen     { background:#f5a62326; color:#ffc457; }
+  .tier-badge.difficile { background:#e8394233; color:#ff5c66; animation:hardPulse 1.1s infinite; }
+  @keyframes hardPulse { 50% { transform:scale(1.1); } }
+  .peek-btn.revealed { background:var(--accent); color:#fff; }
+  .gc.gW  { background:#3a3b44; }
+  .gc.gDB { background:#14288C22; }
+  .gc.gLB { background:#28AADC22; }
+  .gc.gP  { background:#F0AAB422; }
+  .gc.gK  { background:#14141422; }
+  .gc.blocked::after {
+    content:'✕'; position:absolute; inset:0;
+    display:grid; place-items:center;
+    color:var(--danger); font-size:.5rem; font-weight:800;
+    opacity:.8; pointer-events:none; z-index:3;
+  }
+
+  .cube { position:absolute; inset:0; border-radius:0; z-index:2; pointer-events:none; }
+  .cube.cW {
+    background:linear-gradient(145deg,#fff,#f0f0f0 50%,#e0e0e0);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.9),inset 0 -1px 0 rgba(0,0,0,.08),0 1px 3px rgba(0,0,0,.3);
+  }
+  .cube.cDB {
+    background:linear-gradient(145deg,#1a35a8,#14288C 50%,#0f1e6a);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.2),inset 0 -1px 0 rgba(0,0,0,.3),0 1px 3px rgba(0,0,0,.5);
+  }
+  .cube.cLB {
+    background:linear-gradient(145deg,#3cc4f0,#28AADC 50%,#1d8ab5);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.25),inset 0 -1px 0 rgba(0,0,0,.25),0 1px 3px rgba(0,0,0,.5);
+  }
+  .cube.cP {
+    background:linear-gradient(145deg,#f8c4cc,#F0AAB4 50%,#d8909a);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.3),inset 0 -1px 0 rgba(0,0,0,.15),0 1px 3px rgba(0,0,0,.5);
+  }
+  .cube.cK {
+    background:linear-gradient(145deg,#2a2a2a,#141414 50%,#000);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.1),inset 0 -1px 0 rgba(0,0,0,.5),0 1px 3px rgba(0,0,0,.6);
+  }
+  @keyframes cubePop {
+    0%{transform:scale(0);opacity:0}50%{transform:scale(1.15);opacity:1}100%{transform:scale(1);opacity:1}
+  }
+  .cube.pop { animation:cubePop 220ms cubic-bezier(.34,1.56,.64,1) both; }
+
+  /* BOTTOM */
+  .bottom {
+    flex-shrink:0;
+    padding:6px 10px 10px;
+    display:flex; flex-direction:column; gap:6px;
+  }
+
+  .fire-row { display:flex; align-items:center; gap:6px; }
+  .fire-label {
+    font-size:.55rem; color:var(--muted); text-transform:uppercase;
+    letter-spacing:.08em; font-weight:700;
+    writing-mode:vertical-rl; transform:rotate(180deg);
+  }
+  .fire-zone {
+    flex:1; display:flex; align-items:center; justify-content:center;
+    gap:5px; padding:5px 8px;
+    background:var(--panel); border-radius:10px;
+    border:2px solid rgba(255,255,255,.06);
+    transition:border-color 300ms;
+    margin-left:14px;
+  }
+  .fire-zone.active { border-color:var(--accent); }
+  .fire-slot {
+    width:calc(var(--fs, 32px) + 10px); height:calc(var(--fs, 32px) + 10px);
+    border-radius:8px; position:relative;
+    border:2px dashed rgba(255,255,255,.08);
+    display:flex; align-items:center; justify-content:center;
+    flex-shrink:0;
+    transition:border-color 200ms, background 200ms;
+  }
+  @media (max-width:600px) {
+    .fire-zone { padding:4px 6px; gap:4px; }
+    .stage-info { font-size:12px; }
+    .level-btn { padding:4px 8px; font-size:11px; }
+  }
+  .fire-slot.locked { opacity:.3; position:relative; }
+  .fire-slot.locked::after {
+    content:'🔒'; position:absolute; inset:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:calc(var(--fs, 32px) * .5);
+  }
+  .fire-slot.occupied {
+    background:var(--surface);
+    border-color:rgba(255,255,255,.15);
+    box-shadow:0 2px 8px rgba(0,0,0,.4);
+    animation:slotIn 220ms cubic-bezier(.34,1.56,.64,1) both;
+  }
+  .fire-slot.fusion {
+    animation: fusionPop 0.4s ease-out;
+  }
+  @keyframes fusionPop {
+    0%   { transform: scale(1);    box-shadow: 0 0 0 rgba(255,200,50,0); }
+    40%  { transform: scale(1.25); box-shadow: 0 0 18px rgba(255,200,50,.9); }
+    100% { transform: scale(1);    box-shadow: 0 0 0 rgba(255,200,50,0); }
+  }
+  .fire-slot .fs-dot { width:74%; height:74%; border-radius:5px; }
+  /* Compteur du combo en surimpression sur la pastille */
+  .fire-slot .fs-count {
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font-family:'Fredoka',sans-serif; font-size:.62rem; font-weight:800; color:#fff;
+    text-shadow:0 1px 3px rgba(0,0,0,.85), 0 0 2px rgba(0,0,0,.6);
+    pointer-events:none;
+  }
+  .wz-count-badge {
+    font-family:'Fredoka',sans-serif; font-size:.8rem; font-weight:700;
+    color:var(--muted); min-width:28px; text-align:center;
+    transition: color 200ms;
+  }
+  .wz-count-badge.danger { color: var(--danger); }
+  /* flying pixel animation */
+  .fly-pixel {
+    position: fixed;
+    width: 8px; height: 8px; border-radius: 2px;
+    pointer-events: none; z-index: 999;
+    will-change: transform, opacity;
+    animation: flyUp 0.28s ease-out forwards;
+  }
+  @keyframes flyUp {
+    0%   { transform: translate(0, 0) scale(1); opacity: 1; }
+    80%  { opacity: 1; }
+    100% { transform: translate(var(--dx), var(--dy)) scale(0.5); opacity: 0; }
+  }
+
+  /* ── Feux d'artifice de victoire ─────────────────────────────────── */
+  .fireworks-layer {
+    position: fixed; inset: 0; pointer-events: none; z-index: 998;
+    overflow: hidden;
+  }
+  .fw-particle {
+    position: absolute; width: 6px; height: 6px; border-radius: 50%;
+    will-change: transform, opacity;
+    animation: fwBurst var(--fw-dur, 900ms) cubic-bezier(.15,.7,.3,1) forwards;
+  }
+  @keyframes fwBurst {
+    0%   { transform: translate(0,0) scale(1); opacity: 1; }
+    70%  { opacity: 1; }
+    100% { transform: translate(var(--fx), var(--fy)) scale(.3); opacity: 0; }
+  }
+  .fw-flash {
+    position: absolute; width: 4px; height: 4px; border-radius: 50%;
+    background: #fff; box-shadow: 0 0 12px 4px #fff;
+    animation: fwFlash 350ms ease-out forwards;
+  }
+  @keyframes fwFlash {
+    0%   { transform: scale(0); opacity: 1; }
+    40%  { transform: scale(1); opacity: 1; }
+    100% { transform: scale(1.4); opacity: 0; }
+  }
+
+  .cannons-box { display:flex; flex-direction:column; gap:5px; align-items:center; }
+  .cannons-row { display:flex; justify-content:center; gap:8px; flex-wrap:nowrap; }
+  .wall-grid { display:grid; gap:4px; justify-content:center; width:fit-content; margin:0 auto; }
+  .wall-cell { border-radius:6px; width:var(--wc,40px); height:var(--wc,40px); display:flex; }
+  .wall-cell.hole { border:1px dashed rgba(255,255,255,.08); background:rgba(255,255,255,.02); }
+  .wall-fly { pointer-events:none; display:flex; align-items:center; justify-content:center; }
+  /* Canons qui remontent depuis le bas de leur colonne */
+  @keyframes riseIn {
+    from { transform:translateY(160%); opacity:0; }
+    to   { transform:translateY(0); opacity:1; }
+  }
+  .cannon.rising { animation:riseIn 260ms cubic-bezier(.22,1,.36,1) both; }
+  .cannon.wall-cn {
+    padding:0; min-width:0; border-radius:6px; box-sizing:border-box;
+    width:100%; height:100%; justify-content:center;
+  }
+  .cannon.wall-cn .cannon-barrel { width:74%; height:74%; border-radius:5px; }
+  .cannon.buried {
+    opacity:.38; filter:saturate(.4) brightness(.8);
+    pointer-events:none; transform:scale(.92); cursor:default;
+  }
+  .cannon.accessible { border-color:rgba(255,255,255,.25); }
+  .cannon.accessible:hover { transform:translateY(-3px); border-color:var(--accent); }
+  .cannon {
+    display:flex; flex-direction:column; align-items:center; gap:3px;
+    padding:8px 12px; border-radius:10px; background:var(--surface);
+    cursor:pointer; transition:all 120ms ease;
+    border:2px solid transparent; box-shadow:0 3px 8px rgba(0,0,0,.3);
+    user-select:none; min-width:50px;
+  }
+  .cannon:hover { transform:translateY(-2px); border-color:rgba(255,255,255,.15); box-shadow:0 6px 14px rgba(0,0,0,.5); }
+  .cannon:active { transform:translateY(0); }
+  .cannon.disabled { opacity:.3; pointer-events:none; }
+  .cannon.reserve { opacity:.75; transform:scale(.9); }
+  .cannon.reserve2 { opacity:.5; transform:scale(.82); }
+  .cannon.reserve:hover { opacity:1; transform:scale(.95) translateY(-2px); }
+
+  .cannon-slot {
+    min-width:54px; min-height:64px;
+    display:flex; align-items:center; justify-content:center;
+    border-radius:10px;
+    border:2px dashed rgba(255,255,255,.07);
+  }
+
+  .main-row   { border-bottom:1px solid rgba(255,255,255,.06); padding-bottom:6px; margin-bottom:4px; }
+  .reserve-row { opacity:.85; }
+  .reserve2-row { opacity:.7; }
+
+  /* pas de highlight ligne courante */
+
+  .cannon-barrel { width:26px; height:26px; border-radius:6px; position:relative; }
+  .cannon-barrel.bW  { background:var(--col-W); }
+  .cannon-barrel.bDB { background:var(--col-DB); }
+  .cannon-barrel.bLB { background:var(--col-LB); }
+  .cannon-barrel.bP  { background:var(--col-P); }
+  .cannon-barrel.bK  { background:var(--col-K); }
+  .cannon-barrel::after {
+    content:''; position:absolute; inset:2px; border-radius:4px;
+    background:linear-gradient(135deg,rgba(255,255,255,.25),transparent 60%);
+  }
+  .cannon-ammo { font-family:'Fredoka',sans-serif; font-size:.8rem; font-weight:700; }
+
+  .bottom-row { display:flex; justify-content:space-between; align-items:center; }
+  .status { font-size:.7rem; color:var(--muted); flex:1; }
+  .status.error { color:var(--danger); }
+  .status.ok { color:var(--success); }
+  .status.warn { color:var(--danger); font-weight:600; }
+  .level-btn {
+    font-family:'Fredoka',sans-serif; font-size:.7rem; font-weight:600;
+    padding:4px 10px; border-radius:8px; border:none; cursor:pointer;
+    background:var(--surface); color:var(--muted);
+    transition:all 120ms;
+  }
+  .level-btn.active { background:var(--accent); color:#fff; }
+  .level-btn:hover { color:var(--text); }
+  .reset-btn {
+    font-size:.65rem; font-weight:600;
+    padding:4px 12px; border-radius:6px; border:none;
+    color:var(--muted); background:var(--surface); cursor:pointer;
+  }
+  .reset-btn:hover { color:var(--text); }
+
+  .overlay {
+    display:none; position:fixed; inset:0; z-index:100;
+    background:rgba(0,0,0,.8); backdrop-filter:blur(8px); place-items:center;
+  }
+  .overlay.show { display:grid; }
+  .ocard {
+    background:var(--panel); border-radius:20px; padding:28px 32px;
+    text-align:center; box-shadow:0 20px 60px rgba(0,0,0,.7);
+    animation:oPop 500ms cubic-bezier(.34,1.56,.64,1) both;
+    max-width:300px;
+  }
+  @keyframes oPop { 0%{transform:scale(.6);opacity:0} 100%{transform:scale(1);opacity:1} }
+  .ocard h2 { font-family:'Fredoka',sans-serif; font-size:1.6rem; margin-bottom:6px; }
+  .ocard h2.go { color:var(--danger); }
+  .ocard h2.win {
+    background:linear-gradient(135deg,#28AADC,#F0AAB4,#ff6b4a);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+  }
+  .ocard p { color:var(--muted); margin-bottom:12px; font-size:.9rem; }
+  .ocard button {
+    font-family:'Fredoka',sans-serif; font-size:.9rem; font-weight:700;
+    padding:8px 22px; border-radius:10px; border:none; color:white;
+    background:linear-gradient(135deg,var(--accent),#e0452f); cursor:pointer;
+  }
+
+  /* ── Sélecteur de niveaux (mode Libre) ─────────────────────────────── */
+  .lvcard {
+    background:var(--panel); border-radius:20px; padding:22px 24px;
+    text-align:center; box-shadow:0 20px 60px rgba(0,0,0,.7);
+    animation:oPop 400ms cubic-bezier(.34,1.56,.64,1) both;
+    max-width:340px; width:90%;
+  }
+  .lvcard h2 { font-family:'Fredoka',sans-serif; font-size:1.3rem; margin-bottom:14px; }
+  .lv-mode-row { display:flex; gap:8px; margin-bottom:16px; }
+  .lv-mode-btn {
+    flex:1; font-family:'Fredoka',sans-serif; font-size:.75rem; font-weight:700;
+    padding:8px 6px; border-radius:10px; border:2px solid rgba(255,255,255,.08);
+    background:var(--surface); color:var(--muted); cursor:pointer; transition:all 120ms;
+  }
+  .lv-mode-btn.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .lv-list { display:flex; flex-direction:column; gap:8px; max-height:340px; overflow-y:auto; }
+  .lv-item {
+    display:flex; justify-content:space-between; align-items:center;
+    padding:10px 14px; border-radius:12px; background:var(--surface);
+    border:2px solid rgba(255,255,255,.06); cursor:pointer; transition:all 120ms;
+    text-align:left;
+  }
+  .lv-item:hover { border-color:var(--accent); }
+  .lv-item .lv-name { font-family:'Fredoka',sans-serif; font-weight:700; font-size:.9rem; }
+  .lv-item .lv-idx { color:var(--muted); font-size:.7rem; }
+  .lv-close-btn {
+    margin-top:16px; font-family:'Fredoka',sans-serif; font-size:.8rem; font-weight:700;
+    padding:8px 20px; border-radius:10px; border:none; color:var(--muted);
+    background:var(--surface); cursor:pointer;
+  }
+  .lv-close-btn:hover { color:var(--text); }
+  .mode-toggle-btn {
+    font-family:'Fredoka',sans-serif; font-size:.7rem; font-weight:600;
+    padding:4px 10px; border-radius:8px; border:none; cursor:pointer;
+    background:var(--surface); color:var(--muted); transition:all 120ms;
+  }
+  .mode-toggle-btn:hover { color:var(--text); }
+
+  @keyframes shake {
+    0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)}
+  }
+  .shake { animation:shake 350ms ease; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="header">
+    <h1 id="levelTitle">Pixel Cannon</h1>
+    <div class="stats">
+      <div>Tirs:<b id="sShots">0</b></div>
+      <div><span class="hl" id="sProg">0%</span></div>
+    </div>
+  </div>
+  <div style="display:flex;gap:6px;padding:0 14px 6px;flex-shrink:0;">
+    <div class="stage-info"><span id="stageLabel">Niveau 1</span><span class="tier-badge" id="tierBadge"></span></div>
+    <button class="level-btn" id="dirBtn" title="Sens de remplissage">⬆ Bas → Haut</button>
+    <button class="level-btn peek-btn" id="peekBtn" title="Révéler / cacher le modèle">👁 Aperçu</button>
+    <button class="mode-toggle-btn" id="lvSelectBtn" title="Choisir un niveau">🗺 Niveaux</button>
+  </div>
+
+  <div class="grid-section">
+    <div class="grid-outer" id="gridOuter">
+      <div class="rail-border" id="railBorder"></div>
+      <div class="grid" id="grid"></div>
+    </div>
+  </div>
+
+  <div class="bottom">
+    <div class="fire-row">
+      <div class="fire-label">Tir</div>
+      <div class="fire-zone" id="fireZone">
+        <!-- 5 slots créés dynamiquement -->
+      </div>
+      <div class="wz-count-badge" id="beltCount">0/5</div>
+    </div>
+    <div class="cannons-box" id="cannonsBox"></div>
+    <div class="bottom-row">
+      <div class="status" id="status"></div>
+      <button class="reset-btn" id="resetBtn">Reset</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="goOverlay">
+  <div class="ocard">
+    <h2 class="go">Game Over !</h2>
+    <p id="goMsg">Chemin bloqué !</p>
+    <button onclick="retryStage()">Réessayer</button>
+  </div>
+</div>
+
+<div class="overlay" id="winOverlay">
+  <div class="ocard">
+    <h2 class="win">Niveau terminé !</h2>
+    <p>En <b id="winShots">0</b> tirs</p>
+    <button onclick="nextStage()">Niveau suivant ➜</button>
+  </div>
+</div>
+
+<div class="overlay" id="levelSelectOverlay">
+  <div class="lvcard">
+    <h2>Choisir un mode</h2>
+    <div class="lv-mode-row">
+      <button class="lv-mode-btn" id="modeAdventureBtn">🚀 Aventure</button>
+      <button class="lv-mode-btn" id="modeFreeBtn">🧪 Libre (test)</button>
+    </div>
+    <div class="lv-list" id="lvList"></div>
+    <button class="lv-close-btn" id="lvCloseBtn">Fermer</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  let NR=20, NC=20; const MAX_SHOTS=10, CPR=5, VR=2;
+
+  // ── LEVELS ──────────────────────────────────────────────────────────────
+  const LEVELS = [
+    {
+      name: 'Chemin doré',
+      maxShots: 20,
+      colors: {
+        K:{n:'Nuit', b:'bK', c:'cK', hex:'#0A0A0A'},
+        DB:{n:'Marine', b:'bDB', c:'cDB', hex:'#0439B2'},
+        LB:{n:'Bleu', b:'bLB', c:'cLB', hex:'#00ACE9'},
+        Y:{n:'Or', b:'bY', c:'cY', hex:'#FFBB00'},
+        CY:{n:'Ciel', b:'bCY', c:'cCY', hex:'#A5F1FB'},
+        CR:{n:'Crème', b:'bCR', c:'cCR', hex:'#F7E2C5'},
+        O:{n:'Orange', b:'bO', c:'cO', hex:'#FF8900'},
+        PE:{n:'Pêche', b:'bPE', c:'cPE', hex:'#FFB47D'},
+        W:{n:'Blanc', b:'bW', c:'cW', hex:'#FFFFFF'},
+      },
+      grid: [
+        ['K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K'],
+        ['K','K','K','K','K','K','Y','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K'],
+        ['K','K','K','K','K','Y','Y','Y','K','K','K','K','K','K','K','K','K','K','K','K','Y','K','K','K','K','K','K','K','K','K','K','Y','K','K','K','K','K','K','K','K','Y','K','K'],
+        ['K','K','K','K','K','K','Y','K','K','K','K','K','K','K','K','Y','K','K','K','K','K','K','K','K','K','K','Y','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K'],
+        ['K','K','K','Y','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','Y','K','K','K','K','K'],
+        ['K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','Y','K','K','K','K','K','K','K','Y','K'],
+        ['K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','Y','K','K','K','K','Y','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K'],
+        ['K','Y','K','K','K','K','K','K','K','K','Y','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','Y','K','K','K','K','K','K','K','K','K','K','K','K','K','K'],
+        ['K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','Y','K','K','K','K'],
+        ['K','K','K','K','K','K','Y','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K'],
+        ['K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','Y','K','K','K','K','K','Y','K','K','K','K','Y','K','K','K','K','K','K','K','K','K','K','K','K','LB','LB','LB','DB'],
+        ['DB','DB','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','Y','Y','Y','K','K','K','K','Y','K','K','K','K','K','DB','LB','DB','DB','DB'],
+        ['DB','DB','DB','DB','K','K','K','K','K','K','K','Y','K','K','K','K','K','K','K','K','K','K','K','K','K','K','Y','K','K','K','K','K','K','K','K','K','DB','DB','DB','DB','DB','DB','DB'],
+        ['LB','LB','DB','DB','DB','DB','DB','K','K','K','K','K','K','K','K','K','K','K','Y','K','K','K','K','K','K','K','K','K','K','K','K','K','K','DB','DB','DB','DB','DB','DB','DB','DB','DB','DB'],
+        ['LB','LB','LB','LB','DB','DB','DB','DB','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','DB','DB','DB','DB','DB','DB','DB','DB','DB','DB','DB','DB','DB'],
+        ['LB','LB','LB','LB','LB','LB','DB','DB','DB','DB','DB','DB','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','DB','DB','DB','DB','DB','DB','DB','DB','DB','DB','DB','DB','DB','DB'],
+        ['LB','LB','LB','LB','LB','LB','LB','DB','DB','DB','DB','DB','DB','DB','DB','K','K','K','K','K','K','DB','DB','DB','DB','DB','DB','DB','DB','DB','DB','DB','DB','DB','DB','CY','CY','CY','CY','CY','LB','LB','LB'],
+        ['DB','DB','DB','LB','LB','LB','LB','LB','LB','DB','DB','DB','DB','DB','DB','DB','DB','K','K','DB','DB','DB','DB','DB','DB','DB','DB','DB','DB','DB','DB','DB','DB','DB','CY','CY','CY','CY','LB','LB','LB','LB','LB'],
+        ['DB','DB','DB','DB','LB','DB','DB','LB','LB','LB','LB','LB','DB','DB','DB','DB','DB','DB','DB','DB','DB','DB','DB','DB','DB','DB','DB','DB','DB','DB','DB','CY','CY','CY','CY','CY','CY','CY','LB','LB','LB','LB','LB'],
+        ['DB','DB','DB','DB','DB','DB','DB','DB','DB','LB','LB','LB','LB','LB','DB','DB','DB','DB','DB','DB','DB','DB','DB','DB','DB','DB','DB','DB','DB','CY','CY','CY','CY','LB','LB','LB','LB','LB','LB','LB','LB','LB','DB'],
+        ['DB','DB','DB','DB','DB','DB','DB','DB','DB','DB','DB','LB','LB','LB','DB','DB','DB','DB','DB','Y','CR','Y','DB','DB','DB','DB','LB','CY','CY','CY','CY','LB','LB','LB','LB','LB','LB','LB','LB','LB','DB','DB','DB'],
+        ['CY','CY','CY','CY','DB','DB','DB','DB','DB','DB','DB','DB','DB','DB','DB','DB','DB','Y','Y','Y','DB','DB','LB','LB','DB','CY','CY','CY','LB','LB','LB','LB','LB','DB','LB','LB','DB','LB','DB','DB','DB','DB','DB'],
+        ['LB','CY','CY','CY','CY','CY','CY','DB','DB','DB','DB','DB','DB','DB','DB','Y','CR','Y','DB','DB','LB','LB','LB','LB','CY','LB','LB','LB','LB','LB','DB','LB','DB','DB','DB','DB','DB','DB','DB','DB','CY','DB','CY'],
+        ['LB','LB','LB','CY','CY','CY','CY','CY','CY','DB','DB','DB','DB','DB','DB','Y','Y','Y','DB','DB','DB','DB','DB','DB','DB','LB','LB','DB','DB','DB','DB','DB','DB','DB','DB','DB','DB','DB','DB','CY','CY','CY','CY'],
+        ['LB','LB','LB','LB','CY','CY','CY','CY','CY','CY','CY','DB','DB','DB','DB','DB','Y','Y','CR','Y','Y','CR','DB','DB','DB','DB','DB','DB','DB','DB','DB','DB','DB','DB','DB','DB','CY','CY','CY','CY','CY','LB','LB'],
+        ['LB','LB','LB','LB','LB','LB','LB','CY','CY','CY','CY','CY','CY','DB','DB','LB','DB','LB','DB','Y','CR','Y','Y','Y','Y','DB','DB','DB','DB','DB','DB','DB','DB','DB','CY','CY','CY','CY','CY','CY','LB','LB','LB'],
+        ['LB','DB','LB','LB','LB','LB','LB','LB','LB','CY','CY','CY','CY','CY','CY','CY','CY','CY','DB','LB','DB','DB','Y','Y','Y','CR','Y','Y','DB','DB','DB','DB','CY','CY','CY','CY','LB','LB','LB','LB','LB','LB','LB'],
+        ['LB','DB','LB','LB','LB','LB','LB','LB','LB','LB','LB','LB','LB','LB','CY','CY','CY','LB','LB','LB','DB','DB','DB','Y','CR','W','CR','Y','Y','DB','CY','CY','CY','CY','CY','LB','LB','LB','LB','LB','LB','LB','LB'],
+        ['DB','LB','LB','LB','LB','LB','DB','DB','LB','LB','LB','LB','LB','LB','LB','LB','LB','LB','DB','DB','DB','DB','Y','Y','Y','CR','Y','Y','DB','CY','CY','LB','LB','LB','LB','LB','LB','LB','LB','LB','LB','DB','LB'],
+        ['DB','DB','DB','LB','LB','LB','LB','LB','DB','DB','LB','LB','LB','DB','DB','DB','DB','DB','DB','Y','Y','Y','CR','Y','Y','Y','Y','DB','DB','LB','LB','LB','LB','LB','LB','LB','LB','LB','LB','LB','DB','DB','DB'],
+        ['DB','DB','DB','DB','DB','DB','DB','DB','DB','DB','LB','LB','LB','DB','DB','LB','Y','Y','Y','Y','Y','CR','W','CR','Y','Y','DB','DB','DB','LB','LB','LB','LB','LB','LB','LB','LB','LB','DB','DB','DB','DB','DB'],
+        ['DB','DB','LB','LB','DB','DB','DB','DB','DB','DB','DB','DB','DB','DB','Y','Y','Y','Y','CR','Y','Y','Y','CR','Y','Y','DB','DB','LB','LB','LB','LB','LB','LB','LB','LB','LB','DB','DB','DB','DB','DB','LB','LB'],
+        ['DB','DB','DB','DB','LB','LB','LB','LB','LB','DB','DB','DB','Y','Y','Y','Y','Y','CR','W','CR','Y','Y','Y','Y','DB','DB','LB','LB','LB','DB','DB','DB','DB','DB','DB','DB','DB','DB','LB','LB','LB','LB','LB'],
+        ['LB','LB','LB','LB','DB','LB','LB','LB','DB','DB','DB','Y','Y','Y','CR','Y','Y','Y','CR','Y','Y','Y','LB','DB','DB','DB','LB','LB','DB','DB','DB','DB','DB','DB','DB','DB','LB','LB','LB','DB','DB','DB','DB'],
+        ['DB','DB','LB','LB','LB','LB','LB','LB','DB','DB','Y','Y','Y','CR','W','CR','Y','Y','Y','Y','Y','Y','Y','Y','Y','LB','LB','DB','DB','LB','LB','LB','LB','LB','LB','DB','DB','DB','DB','DB','DB','DB','DB'],
+        ['LB','LB','DB','DB','LB','LB','LB','LB','DB','DB','DB','Y','Y','Y','CR','Y','Y','Y','Y','Y','Y','PE','Y','Y','Y','Y','LB','LB','LB','DB','DB','DB','LB','LB','DB','DB','DB','DB','DB','DB','DB','DB','DB'],
+        ['LB','LB','LB','LB','LB','LB','LB','LB','LB','LB','DB','DB','Y','Y','Y','Y','Y','CR','Y','Y','Y','CR','Y','Y','Y','Y','Y','Y','Y','LB','LB','LB','DB','DB','DB','DB','DB','DB','DB','LB','DB','DB','DB'],
+        ['DB','LB','LB','LB','LB','LB','LB','LB','LB','LB','LB','DB','DB','DB','Y','Y','Y','Y','Y','PE','CR','W','CR','PE','Y','Y','CR','PE','Y','Y','Y','LB','LB','LB','DB','DB','DB','LB','LB','DB','DB','DB','DB'],
+        ['DB','DB','LB','LB','LB','LB','LB','LB','LB','LB','LB','LB','DB','DB','Y','Y','Y','Y','Y','Y','Y','CR','Y','Y','Y','Y','Y','CR','Y','Y','Y','Y','Y','LB','LB','LB','DB','DB','LB','DB','DB','DB','DB'],
+        ['DB','DB','DB','DB','LB','LB','LB','LB','LB','LB','LB','LB','DB','DB','Y','Y','Y','PE','Y','Y','Y','PE','Y','Y','Y','Y','CR','CR','CR','Y','Y','Y','Y','Y','LB','LB','LB','LB','LB','LB','LB','LB','LB'],
+        ['LB','LB','LB','LB','LB','LB','LB','LB','LB','DB','DB','DB','DB','Y','Y','Y','Y','CR','Y','Y','Y','Y','Y','Y','PE','CR','CR','W','CR','CR','PE','Y','Y','Y','Y','Y','Y','LB','LB','DB','DB','LB','LB'],
+        ['DB','DB','LB','LB','LB','LB','LB','DB','DB','DB','DB','Y','Y','Y','Y','PE','CR','W','CR','PE','Y','Y','Y','Y','Y','Y','CR','CR','CR','Y','Y','Y','CR','Y','Y','Y','Y','LB','LB','LB','DB','DB','DB'],
+        ['DB','DB','DB','DB','DB','DB','DB','DB','DB','DB','Y','Y','Y','Y','Y','Y','Y','CR','Y','Y','Y','Y','Y','Y','Y','Y','Y','CR','Y','Y','Y','Y','Y','Y','Y','CR','Y','Y','LB','DB','DB','DB','DB'],
+        ['DB','DB','DB','DB','DB','DB','DB','DB','O','O','Y','Y','Y','CR','Y','Y','Y','PE','Y','Y','Y','Y','CR','Y','Y','Y','Y','PE','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','LB','LB','DB','DB','DB'],
+        ['DB','DB','DB','DB','DB','DB','DB','O','O','O','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','O','O','O','O','LB','DB','DB','DB'],
+        ['DB','DB','DB','DB','DB','O','O','O','O','O','O','O','Y','Y','Y','Y','Y','O','O','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','CR','Y','Y','Y','O','O','CR','O','O','DB','DB','DB','DB'],
+        ['DB','DB','DB','DB','O','O','O','O','O','O','O','O','O','O','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','O','O','O','O','O','O','O','O','DB','DB','DB'],
+      ]
+    },
+    {
+      name: 'Sunset',
+      maxShots: 20,
+      colors: {
+        K:{n:'Noir', b:'bK', c:'cK', hex:'#282828'},
+        PK:{n:'Rose', b:'bPK', c:'cPK', hex:'#F40079'},
+        O:{n:'Orange', b:'bO', c:'cO', hex:'#F58700'},
+        B:{n:'Bleu', b:'bB', c:'cB', hex:'#1C38EC'},
+        Y:{n:'Soleil', b:'bY', c:'cY', hex:'#E9F800'},
+        CY:{n:'Vague', b:'bCY', c:'cCY', hex:'#009BF5'},
+      },
+      grid: [
+        ['PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK'],
+        ['PK','PK','PK','PK','PK','K','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK'],
+        ['PK','PK','PK','PK','PK','K','K','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK'],
+        ['K','K','K','PK','PK','K','K','PK','PK','PK','PK','PK','PK','PK','K','K','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK'],
+        ['K','K','K','K','PK','PK','K','K','PK','PK','PK','PK','K','K','K','K','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK'],
+        ['K','K','K','K','K','K','K','K','PK','PK','K','K','K','K','K','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK'],
+        ['PK','K','K','K','K','K','K','K','PK','K','K','K','K','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK'],
+        ['PK','PK','K','K','K','K','K','K','K','K','K','K','K','K','K','K','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK'],
+        ['K','K','PK','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK'],
+        ['K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK'],
+        ['K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK'],
+        ['K','K','K','K','K','K','K','K','K','K','K','K','K','K','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK'],
+        ['K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK'],
+        ['K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK'],
+        ['O','O','K','K','K','K','K','K','K','K','K','O','K','K','K','K','K','K','K','O','O','O','O','O','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK'],
+        ['O','K','K','K','K','K','K','K','K','K','K','O','O','K','K','K','K','K','K','PK','O','O','O','O','O','O','O','O','O','O','O','O','O','O','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK'],
+        ['K','K','K','K','O','K','K','O','K','K','K','O','O','O','O','K','K','K','K','PK','PK','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O'],
+        ['K','K','K','O','O','K','K','O','O','K','K','K','O','O','O','O','K','K','K','K','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK','PK'],
+        ['K','K','K','O','O','K','K','O','O','K','K','K','O','O','O','O','O','K','K','K','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','K','K','O'],
+        ['K','K','O','O','K','K','O','O','O','K','K','K','O','O','O','O','O','O','K','K','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','K','K','O','O'],
+        ['K','K','O','O','K','K','O','O','O','O','K','K','O','O','O','O','O','O','O','O','O','O','Y','Y','Y','Y','Y','Y','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','K','K','O','K'],
+        ['K','O','O','O','K','K','O','O','O','O','K','K','O','O','O','O','O','O','O','O','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','K','K','K','K','K'],
+        ['O','O','O','K','K','O','O','O','O','O','K','K','O','O','O','O','O','O','O','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','O','O','O','O','O','O','O','O','K','K','K','K','K','O','K','K','K','K','K'],
+        ['O','O','O','K','K','O','O','O','O','O','O','O','O','O','O','O','O','O','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','O','O','O','O','O','O','O','O','K','K','K','K','K','K','K','K','K','K'],
+        ['O','O','O','K','K','O','O','O','O','O','O','O','O','O','O','O','O','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','O','O','O','O','O','O','O','O','K','K','K','K','K','K','K','K','K'],
+        ['O','O','O','K','K','O','O','O','O','O','O','O','O','O','O','O','O','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','O','O','O','O','O','O','K','K','K','K','K','K','K','K','K','K','K'],
+        ['O','O','O','K','K','O','O','O','O','O','O','O','O','O','O','O','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','O','O','O','O','K','K','K','K','K','K','K','K','K','K','K','K'],
+        ['O','O','O','K','K','O','O','O','O','O','O','O','O','O','O','O','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','O','O','O','K','K','K','O','K','K','K','K','K','K','K','K','K'],
+        ['O','O','O','K','K','O','O','O','O','O','O','O','O','O','O','O','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','O','O','O','O','O','O','K','K','K','K','K','K','K','K','K','K'],
+        ['O','O','O','K','K','O','O','O','O','O','O','O','O','O','O','O','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','O','O','O','O','O','K','K','K','K','K','K','K','K','K','K','K'],
+        ['B','B','B','K','K','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','K','K','K','K','K','B','K','K','K','K','K','B'],
+        ['B','B','B','K','K','B','B','B','B','B','B','B','B','B','B','B','CY','CY','CY','CY','B','B','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','B','B','B','B','K','K','K','K','B','B','K','K','K','K','K','B'],
+        ['B','B','B','K','K','CY','CY','CY','CY','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','K','K','K','B','B','K','K','K','B','K','K','B'],
+        ['B','B','B','K','K','B','B','B','B','B','B','B','CY','CY','CY','CY','CY','B','B','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','B','B','B','B','B','B','K','K','B','B','B','K','K','K','B','K','K','B'],
+        ['B','B','CY','K','K','CY','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','CY','CY','CY','K','CY','CY','B','B','K','K','K','B','K','K','B'],
+        ['B','B','B','K','K','B','B','B','B','B','B','B','B','B','B','B','B','B','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','K','K','K','B','K','K','B'],
+        ['K','K','K','K','K','K','K','B','B','CY','CY','CY','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','CY','CY','CY','CY','CY','CY','B','B','B','B','B','B','B','B','B','K','K','B','K','K','B'],
+        ['K','K','K','K','K','K','K','K','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','K','B','K','K','B'],
+        ['K','K','K','K','K','K','K','K','K','B','B','B','B','B','CY','CY','CY','CY','CY','CY','CY','CY','CY','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','K','K','B'],
+        ['K','K','K','K','K','K','K','K','K','K','K','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','K','K','B'],
+        ['K','K','K','K','K','K','K','K','K','K','K','K','K','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','B','K','K','K','K','K','K','K','K','K'],
+        ['K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','B','B','B','B','B','B','B','CY','CY','CY','CY','CY','CY','CY','B','B','B','B','B','B','K','K','K','K','K','K','K','K','K','K'],
+        ['K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','B','B','B','B','B','B','B','B','B','B','B','B','B','K','K','K','K','K','K','K','K','K','K','K','K'],
+        ['K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','B','B','B','B','B','B','B','B','B','K','K','K','K','K','K','K','K','K','K','K','K'],
+        ['K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K'],
+        ['K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K'],
+        ['K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K'],
+        ['K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K'],
+        ['K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K'],
+        ['K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K'],
+      ]
+    },
+    {
+      name: 'Liberté',
+      maxShots: 25,
+      colors: {
+        NB:{n:'Nuit', b:'bNB', c:'cNB', hex:'#16458E'},
+        TL:{n:'Turquoise', b:'bTL', c:'cTL', hex:'#04ADAD'},
+        LT:{n:'Turquoise clair', b:'bLT', c:'cLT', hex:'#49BECB'},
+        LC:{n:'Cyan', b:'bLC', c:'cLC', hex:'#8AD2E5'},
+        TD:{n:'Turquoise foncé', b:'bTD', c:'cTD', hex:'#208498'},
+        SG:{n:'Gris', b:'bSG', c:'cSG', hex:'#726F6E'},
+        DK:{n:'Ombre', b:'bDK', c:'cDK', hex:'#0F1334'},
+        YE:{n:'Or', b:'bYE', c:'cYE', hex:'#F3C724'},
+      },
+      grid: [
+        ['NB','NB','NB','NB','NB','SG','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB'],
+        ['NB','NB','NB','NB','NB','YE','NB','SG','NB','NB','SG','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','YE','NB','NB','NB','NB','NB'],
+        ['NB','NB','NB','NB','SG','YE','SG','YE','SG','YE','YE','NB','NB','NB','NB','NB','YE','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB'],
+        ['NB','NB','NB','SG','YE','YE','YE','YE','YE','YE','SG','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB'],
+        ['NB','NB','SG','LC','YE','YE','SG','SG','SG','SG','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB'],
+        ['NB','NB','YE','YE','YE','YE','YE','YE','SG','SG','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB'],
+        ['NB','NB','LC','YE','SG','YE','SG','YE','SG','SG','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','YE','NB','NB','NB','NB','NB','NB','NB','NB','NB'],
+        ['NB','TD','LT','TD','SG','TL','TL','TD','SG','SG','SG','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','TD','NB','NB','NB','NB','NB','NB'],
+        ['NB','TD','TD','SG','TL','TD','SG','SG','SG','SG','TD','TD','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','TL','NB','NB','NB','NB','NB','NB'],
+        ['NB','SG','SG','TD','DK','DK','DK','DK','DK','DK','SG','TD','NB','NB','YE','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','TL','NB','NB','NB','YE','NB','NB'],
+        ['NB','TL','TD','DK','DK','DK','DK','DK','DK','DK','DK','SG','NB','NB','NB','NB','NB','NB','TD','NB','NB','NB','NB','NB','NB','NB','TL','NB','NB','NB','NB','NB','NB'],
+        ['NB','TD','DK','DK','DK','SG','SG','SG','SG','DK','DK','DK','NB','NB','NB','NB','NB','NB','TD','TL','TD','NB','NB','NB','NB','NB','TL','NB','NB','NB','NB','TD','NB'],
+        ['NB','DK','DK','DK','SG','SG','SG','SG','SG','DK','DK','DK','NB','NB','NB','NB','NB','NB','NB','TD','TL','TD','NB','NB','NB','NB','TL','TD','NB','NB','NB','TL','NB'],
+        ['NB','NB','DK','DK','SG','LC','LC','SG','SG','DK','DK','DK','NB','NB','NB','NB','NB','NB','NB','NB','TD','TL','TL','TD','NB','NB','TL','TL','NB','NB','NB','TL','NB'],
+        ['NB','NB','NB','DK','LC','LT','TL','TL','TL','DK','DK','NB','NB','NB','TD','TD','NB','NB','NB','NB','NB','NB','TD','TL','TD','NB','TL','TL','SG','SG','TD','TL','NB'],
+        ['NB','NB','NB','NB','LC','TL','TL','TL','TL','NB','NB','NB','NB','NB','NB','TD','TL','TD','NB','NB','NB','TD','TL','TL','TL','TL','TL','TL','TL','TD','TL','TL','SG'],
+        ['NB','NB','NB','NB','TD','TL','LC','LT','TL','TD','SG','NB','NB','NB','NB','NB','TD','TL','TL','TD','TD','NB','TL','NB','TL','TD','TL','TD','TL','TL','TL','TL','SG'],
+        ['NB','NB','NB','NB','NB','TL','LT','LC','LC','LT','TD','SG','NB','NB','NB','NB','NB','NB','TD','TL','NB','NB','TL','NB','TL','NB','TL','NB','TL','TD','TL','TL','TD'],
+        ['NB','YE','NB','NB','NB','TL','TL','LC','LC','LC','LT','TD','SG','NB','NB','NB','NB','NB','NB','TD','NB','LT','LT','TL','TL','TL','TL','TL','TL','NB','TL','TL','TL'],
+        ['NB','NB','NB','NB','NB','TD','TL','SG','LC','LC','LC','TL','SG','NB','NB','NB','NB','NB','NB','NB','NB','LC','LT','TL','TL','TL','TL','TL','TL','TL','TL','TL','TL'],
+        ['NB','NB','NB','NB','NB','LT','TL','SG','LC','LC','LC','TL','TD','SG','NB','TD','TL','TL','TD','NB','NB','LT','LC','LC','LC','LT','TL','TL','TL','TL','LC','LT','TL'],
+        ['NB','NB','NB','NB','NB','LC','TL','SG','SG','LC','LC','TL','TL','TD','SG','NB','NB','TD','TL','TL','TL','TD','TD','TL','TL','TL','TL','LT','LC','LT','LT','LC','LT'],
+        ['NB','NB','NB','NB','NB','TD','TL','SG','SG','NB','LC','TL','TL','TL','TD','SG','NB','NB','NB','TD','TL','SG','TL','TL','TL','TL','TL','TL','LT','LC','LT','LC','LC'],
+        ['NB','NB','NB','NB','NB','NB','TL','SG','SG','NB','TD','LT','TL','TL','TL','TD','SG','NB','NB','NB','NB','SG','TL','SG','SG','LC','TL','TL','LT','TL','LC','LC','LC'],
+        ['NB','NB','NB','NB','NB','NB','TD','SG','NB','NB','NB','LC','TL','TL','TL','TL','TD','SG','NB','NB','NB','NB','TL','SG','LC','LT','TL','TL','TL','LT','SG','LC','LC'],
+        ['NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','LC','LT','TL','TL','TL','TL','SG','SG','NB','NB','NB','TL','LC','LC','TL','TL','TL','TL','SG','TD','LC','LC'],
+        ['NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','LC','LC','TL','TL','TL','TL','TD','SG','SG','NB','NB','TL','LC','LC','TL','TL','TL','TL','TL','TL','LC','LC'],
+        ['NB','NB','NB','NB','YE','NB','NB','NB','NB','NB','NB','TD','LC','LT','TL','TL','TL','TL','SG','SG','NB','NB','TD','LC','LC','TL','TL','TL','TL','LT','LT','LC','LC'],
+        ['NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','LC','LC','TL','TL','TL','TL','TD','SG','SG','NB','SG','LC','LT','TL','TL','TL','LT','LC','TL','LT','LC'],
+        ['NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','LC','LC','LT','TL','TL','TL','TL','SG','SG','NB','NB','LT','TL','TL','TL','LT','LC','LC','TL','TD','LT'],
+        ['NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','TD','LC','LC','TL','TL','TL','TL','LT','LC','LT','TD','TD','TL','TL','TL','LC','LC','TL','TL','SG','TD'],
+        ['NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','LC','LC','LT','TL','TL','LT','LT','TL','TL','LT','NB','TD','TL','TL','LC','LC','TL','TL','TD','SG'],
+        ['NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','TD','LC','LC','TL','LT','LT','TL','LT','LC','LT','TL','TD','NB','NB','LC','LC','TL','TL','LT','LC'],
+        ['NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','TD','LC','TL','LC','TL','LT','LT','TL','LC','LC','LC','TL','TL','LC','LT','LT','LC','LC','LT'],
+        ['NB','NB','NB','NB','NB','NB','NB','NB','NB','YE','NB','NB','NB','NB','NB','TD','LT','LT','LT','LT','TL','LT','LC','LC','LT','TL','LT','LT','LT','LC','LT','TL','TL'],
+        ['NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','LC','LT','LC','TL','LT','LC','TL','TL','LT','LC','TL','LT','LC','TL','TL','LT','LC'],
+        ['NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','LT','LC','TL','LT','LC','TL','TL','LT','LC','LC','TL','LC','TL','TL','LT','TL','TL'],
+        ['NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','LC','TL','LT','LC','LC','TL','LT','LC','LC','TL','LT','TL','TL','TL','LC','TL','TL'],
+        ['NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','LC','TL','LC','LC','TL','TL','LC','LC','LT','LT','LC','TL','TL','TL','LC','TL','TL'],
+        ['NB','NB','YE','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','LC','LT','LC','TL','TL','TL','LC','LT','LT','LC','TL','TL','TL','LT','TL','TL','TL'],
+        ['NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','LC','LC','LC','TL','TL','LT','LC','TL','LC','TL','TL','TL','LT','TL','TL','TL','TL'],
+        ['NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','LC','LC','LC','TL','LT','LC','LT','LT','LC','TL','TL','TL','LC','TL','TL','TL','TL'],
+        ['NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','YE','NB','NB','NB','TD','LC','LC','TL','LC','LC','LT','LC','LT','TL','TL','LT','TL','TL','TL','TL','TL'],
+        ['NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','NB','LC','LC','TL','LC','LT','LC','LC','TL','TL','TL','LC','TL','TL','TL','TL','TL'],
+      ]
+    },
+    {
+      name: 'Ourson',
+      maxShots: 20,
+      colors: {
+        K:{n:'Noir', b:'bK', c:'cK', hex:'#000000'},
+        BR:{n:'Marron', b:'bBR', c:'cBR', hex:'#C48037'},
+        DB:{n:'Marron foncé', b:'bDB', c:'cDB', hex:'#946028'},
+        OR:{n:'Orange', b:'bOR', c:'cOR', hex:'#FF6E40'},
+        YE:{n:'Beige', b:'bYE', c:'cYE', hex:'#FFE082'},
+        CR:{n:'Crème', b:'bCR', c:'cCR', hex:'#FFECB3'},
+        PK:{n:'Rose', b:'bPK', c:'cPK', hex:'#FF8A65'},
+        LC:{n:'Crème clair', b:'bLC', c:'cLC', hex:'#FFF9C4'},
+        LP:{n:'Rose clair', b:'bLP', c:'cLP', hex:'#FFAB91'},
+      },
+      grid: [
+        ['','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','K','K','K','','','','','','','','','','','','','','K','K','K','','','','','','','','','','',''],
+        ['','','','','','','','','','','K','BR','BR','BR','K','','','','K','K','K','K','K','','','','K','BR','BR','BR','K','','','','','','','','','',''],
+        ['','','','','','','','','','K','BR','DB','DB','DB','BR','K','K','K','BR','BR','BR','BR','BR','K','K','K','BR','DB','DB','DB','BR','K','','','','','','','','',''],
+        ['','','','','','','','','','K','DB','OR','OR','PK','DB','DB','BR','BR','BR','BR','BR','BR','BR','BR','BR','DB','DB','OR','OR','PK','DB','K','','','','','','','','',''],
+        ['','','','','','','','','','K','DB','OR','OR','OR','DB','BR','BR','BR','BR','BR','BR','BR','BR','BR','BR','BR','DB','OR','OR','OR','DB','K','','','','','','','','',''],
+        ['','','','','','','','','','K','DB','DB','DB','DB','BR','BR','BR','BR','BR','BR','BR','BR','BR','BR','BR','BR','BR','DB','DB','DB','DB','K','','','','','','','','',''],
+        ['','','','','','','','','','','K','K','DB','BR','BR','BR','BR','BR','BR','BR','BR','BR','BR','BR','BR','BR','BR','BR','DB','K','K','','','','','','','','','',''],
+        ['','','','','','','','','','','','K','DB','BR','BR','BR','BR','BR','BR','BR','BR','BR','BR','BR','BR','BR','BR','BR','DB','K','','','','','','','','','','',''],
+        ['','','','','','','','','','','K','DB','DB','BR','BR','BR','BR','BR','BR','BR','BR','BR','BR','BR','BR','BR','BR','BR','DB','DB','K','','','','','','','','','',''],
+        ['','','','','','','','','','','K','DB','BR','BR','BR','K','K','BR','BR','BR','BR','BR','BR','BR','K','K','BR','BR','BR','DB','K','','','','','','','','','',''],
+        ['','','','','','','','','','','K','DB','BR','BR','K','K','','K','BR','BR','BR','BR','BR','K','K','','K','BR','BR','DB','K','','','','','','','','','',''],
+        ['','','','','','','','','','','K','DB','BR','BR','K','K','K','K','BR','LC','LC','LC','BR','K','K','K','K','BR','BR','DB','K','','','','','','','','','',''],
+        ['','','','','','','','','','','K','DB','BR','OR','BR','K','K','BR','LC','K','K','K','LC','BR','K','K','BR','OR','BR','DB','K','','','','','','','','','',''],
+        ['','','','','','','','','','','K','DB','OR','OR','OR','BR','BR','LC','LC','LC','K','LC','LC','LC','BR','BR','OR','OR','OR','DB','K','','','','','','','','','',''],
+        ['','','','','','','','','','','K','DB','DB','OR','BR','BR','BR','LC','LC','K','LC','K','LC','LC','BR','BR','BR','OR','DB','DB','K','','','','','','','','','',''],
+        ['','','','','','','','','','','','K','DB','DB','BR','BR','DB','YE','YE','YE','YE','YE','YE','YE','DB','BR','BR','DB','DB','K','','','','','','','','','','',''],
+        ['','','','','','','','','','K','K','K','K','DB','BR','DB','K','K','YE','YE','YE','YE','YE','K','K','DB','BR','DB','K','K','K','K','','','','','','','','',''],
+        ['','','','','','','','','K','BR','BR','BR','BR','K','DB','K','PK','PK','K','DB','DB','DB','K','PK','PK','K','DB','K','BR','BR','BR','BR','K','','','','','','','',''],
+        ['','','','','','','','K','DB','BR','CR','CR','BR','BR','K','K','OR','LP','PK','K','K','K','PK','LP','OR','K','K','BR','BR','CR','CR','BR','DB','K','','','','','','',''],
+        ['','','','','','','','K','DB','CR','OR','OR','CR','BR','DB','K','PK','OR','LP','K','PK','K','LP','OR','PK','K','DB','BR','CR','OR','OR','CR','DB','K','','','','','','',''],
+        ['','','','','','','','','K','DB','YE','YE','BR','DB','DB','K','PK','LP','OR','K','K','K','OR','LP','PK','K','DB','DB','BR','YE','YE','DB','K','','','','','','','',''],
+        ['','','','','','','','','','K','DB','DB','DB','DB','DB','K','OR','OR','K','OR','K','OR','K','OR','OR','K','DB','DB','DB','DB','DB','K','','','','','','','','',''],
+        ['','','','','','','','','','','K','K','K','DB','DB','DB','K','K','OR','OR','K','OR','OR','K','K','DB','DB','DB','K','K','K','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','K','DB','DB','YE','K','OR','PK','K','PK','OR','K','YE','DB','DB','K','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','K','K','K','DB','DB','DB','YE','CR','K','K','CR','K','K','CR','YE','DB','DB','DB','K','K','K','','','','','','','','','',''],
+        ['','','','','','','','','','K','BR','BR','BR','K','K','DB','YE','CR','CR','CR','CR','CR','CR','CR','YE','DB','K','K','BR','BR','BR','K','','','','','','','','',''],
+        ['','','','','','','','','K','BR','BR','CR','BR','BR','BR','K','DB','YE','YE','YE','YE','YE','YE','YE','DB','K','BR','BR','BR','CR','BR','BR','K','','','','','','','',''],
+        ['','','','','','','','','K','BR','CR','OR','CR','BR','BR','DB','DB','DB','DB','YE','YE','YE','DB','DB','DB','DB','BR','BR','CR','OR','CR','BR','K','','','','','','','',''],
+        ['','','','','','','','','K','BR','OR','PK','OR','CR','BR','DB','DB','DB','DB','DB','DB','DB','DB','DB','DB','DB','BR','CR','OR','PK','OR','BR','K','','','','','','','',''],
+        ['','','','','','','','','K','BR','YE','OR','OR','CR','BR','DB','DB','K','K','K','K','K','K','K','DB','DB','BR','CR','OR','OR','YE','BR','K','','','','','','','',''],
+        ['','','','','','','','','','K','YE','YE','YE','BR','DB','DB','K','','','','','','','','K','DB','DB','BR','YE','YE','YE','K','','','','','','','','',''],
+        ['','','','','','','','','','','K','DB','DB','DB','DB','K','','','','','','','','','','K','DB','DB','DB','DB','K','','','','','','','','','',''],
+        ['','','','','','','','','','','','K','K','K','K','','','','','','','','','','','','K','K','K','K','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','',''],
+      ]
+    },
+    {
+      name: 'Pancakes',
+      maxShots: 20,
+      colors: {
+        K:{n:'Noir', b:'bK', c:'cK', hex:'#210D0E'},
+        BR:{n:'Marron sirop', b:'bBR', c:'cBR', hex:'#722B1B'},
+        O1:{n:'Orange', b:'bO1', c:'cO1', hex:'#F09127'},
+        O2:{n:'Orange foncé', b:'bO2', c:'cO2', hex:'#D9741B'},
+        O3:{n:'Orange brûlé', b:'bO3', c:'cO3', hex:'#B6531A'},
+        Y:{n:'Doré', b:'bY', c:'cY', hex:'#FDC93F'},
+        LC:{n:'Crème', b:'bLC', c:'cLC', hex:'#FDFADE'},
+        R1:{n:'Rouge fraise', b:'bR1', c:'cR1', hex:'#F44139'},
+        R2:{n:'Rouge foncé', b:'bR2', c:'cR2', hex:'#CD1A20'},
+        G:{n:'Vert feuille', b:'bG', c:'cG', hex:'#6B9370'},
+        LB:{n:'Bleu assiette', b:'bLB', c:'cLB', hex:'#7AA9B9'},
+        PB:{n:'Bleu clair', b:'bPB', c:'cPB', hex:'#C6DDE1'},
+      },
+      grid: [
+        ['','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','K','K','','K','K','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','K','R1','R2','K','G','K','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','K','R1','Y','R1','R2','K','G','K','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','K','R1','Y','O1','R2','R1','R2','K','','','','','','','','','','',''],
+        ['','','','','','','','','K','K','K','K','K','K','R1','R1','R1','R1','R2','R2','K','K','K','K','','','','','','','',''],
+        ['','','','','','','K','K','O2','O3','O1','O2','O2','K','R1','R2','R1','R2','R2','BR','K','O3','O2','O2','K','K','','','','','',''],
+        ['','','','','','K','O2','O2','O3','Y','LC','Y','Y','O1','K','K','K','K','K','K','O1','O1','O3','O2','O2','O2','K','','','','',''],
+        ['','','','','K','O1','O2','O3','Y','Y','Y','LC','Y','Y','Y','Y','Y','Y','Y','Y','O1','Y','O1','O3','O2','O2','O2','K','','','',''],
+        ['','','','','K','Y','Y','O2','O3','Y','Y','Y','Y','Y','LC','LC','Y','O1','O1','O1','Y','O1','O1','O3','O3','O1','O1','K','','','',''],
+        ['','','','','K','O1','Y','Y','Y','O3','LC','Y','Y','Y','Y','Y','O1','BR','O3','O3','O3','Y','O3','O1','O1','O1','O2','K','','','',''],
+        ['','','','','','K','O2','O1','O1','O3','LC','Y','O1','O1','Y','O1','O3','O1','Y','Y','O3','Y','O3','O1','O1','O2','K','','','','',''],
+        ['','','','','K','O2','BR','BR','BR','O3','Y','O1','BR','O1','Y','O1','O3','O1','O1','O1','O3','Y','O3','BR','BR','BR','O2','K','','','',''],
+        ['','','','','K','Y','O1','O2','O2','BR','O1','BR','BR','O1','Y','O3','BR','BR','BR','BR','O3','Y','O3','O2','O2','O2','O1','K','','','',''],
+        ['','','','','K','O2','Y','Y','Y','O1','O3','O2','O2','O3','Y','O3','O2','O2','O2','O2','BR','O3','O3','O1','O1','O1','O2','K','','','',''],
+        ['','','','','','K','O1','O1','O1','Y','Y','Y','Y','O3','Y','O3','Y','Y','Y','Y','O1','O2','O1','O1','O1','O2','K','','','','',''],
+        ['','','','','K','O2','BR','BR','BR','O1','O1','O1','O1','O3','LC','O3','O1','O1','O1','O1','O1','O1','O3','BR','BR','BR','O2','K','','','',''],
+        ['','','','','K','Y','O2','O2','O2','BR','BR','BR','BR','O3','Y','O3','BR','BR','BR','BR','BR','BR','BR','O3','O2','O2','O1','K','','','',''],
+        ['','','','','K','O2','Y','Y','Y','O1','O2','O2','O2','O3','O1','O3','O2','O2','O2','O2','O2','O2','O2','Y','Y','O1','O2','K','','','',''],
+        ['','','','K','LB','K','O2','O2','O1','Y','Y','Y','Y','O1','O3','O1','Y','Y','Y','Y','O1','O1','O1','O1','O1','O2','K','LB','K','','',''],
+        ['','','K','LB','LB','K','BR','BR','BR','O1','O1','O1','O1','O1','O1','O2','O1','O1','O1','O1','O1','O1','O2','BR','BR','BR','K','LB','LB','K','',''],
+        ['','','K','PB','LB','K','O2','O2','O2','BR','BR','BR','BR','BR','BR','BR','BR','BR','BR','BR','BR','BR','BR','O3','O2','O2','K','LB','LB','K','',''],
+        ['','','K','PB','PB','LB','K','K','O3','O2','O2','O2','O2','O2','O2','O2','O2','O2','O2','O2','O2','O2','O3','O2','K','K','LB','LB','LB','K','',''],
+        ['','','','K','PB','PB','PB','LB','K','K','K','K','O2','O2','O2','O2','O2','O2','O2','O2','K','K','K','K','LB','LB','PB','PB','K','','',''],
+        ['','','','','K','K','PB','PB','PB','PB','PB','LB','K','K','K','K','K','K','K','K','LB','LB','LB','LB','PB','PB','K','K','','','',''],
+        ['','','','','','','K','K','K','PB','PB','PB','PB','PB','PB','PB','PB','PB','PB','PB','PB','PB','PB','K','K','K','','','','','',''],
+        ['','','','','','','','','','K','K','K','K','K','K','K','K','K','K','K','K','K','K','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','',''],
+      ]
+    },
+    {
+      name: 'Vague',
+      maxShots: 20,
+      colors: {
+        BG:{n:'Sable', b:'bBG', c:'cBG', hex:'#FFDC82'},
+        W:{n:'Écume', b:'bW', c:'cW', hex:'#FFFFFF'},
+        DB:{n:'Bleu marine', b:'bDB', c:'cDB', hex:'#0D45A6'},
+        LB:{n:'Bleu clair', b:'bLB', c:'cLB', hex:'#67BCF5'},
+      },
+      grid: [
+        ['BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG'],
+        ['BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG'],
+        ['BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG'],
+        ['BG','BG','BG','BG','BG','BG','BG','BG','BG','W','W','W','W','W','W','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG'],
+        ['BG','BG','BG','BG','BG','BG','BG','W','W','W','W','W','W','W','W','W','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG'],
+        ['BG','BG','BG','BG','BG','W','W','W','W','W','W','W','W','W','W','W','W','BG','W','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG'],
+        ['BG','BG','BG','BG','BG','W','W','W','W','W','W','DB','W','W','W','W','BG','W','BG','W','BG','BG','BG','BG','BG','BG','BG','BG','BG'],
+        ['BG','BG','BG','W','W','W','W','W','LB','DB','DB','LB','LB','W','W','W','W','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG'],
+        ['BG','BG','BG','W','W','W','W','W','DB','DB','LB','DB','DB','DB','W','W','BG','W','W','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG'],
+        ['BG','BG','W','W','W','W','W','W','W','LB','DB','DB','DB','LB','BG','BG','W','BG','W','W','BG','BG','BG','BG','BG','BG','BG','BG','BG'],
+        ['W','W','W','W','W','W','W','DB','W','W','DB','DB','LB','BG','BG','BG','BG','BG','W','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG'],
+        ['W','W','W','DB','LB','W','W','DB','DB','LB','DB','LB','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG'],
+        ['W','W','W','LB','DB','DB','W','W','LB','DB','DB','LB','BG','BG','BG','BG','BG','BG','BG','W','BG','BG','BG','BG','BG','BG','BG','BG','BG'],
+        ['W','W','W','W','DB','LB','W','DB','W','DB','LB','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG'],
+        ['W','DB','LB','W','DB','LB','DB','DB','LB','DB','LB','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','W'],
+        ['W','DB','LB','DB','DB','LB','DB','DB','LB','DB','DB','LB','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','W','W'],
+        ['W','DB','LB','DB','DB','LB','DB','DB','W','DB','DB','LB','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','W','W','W'],
+        ['W','W','LB','DB','DB','DB','LB','W','W','W','W','LB','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','W','W','W','W'],
+        ['W','DB','W','LB','LB','DB','W','W','W','W','W','W','LB','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','W','W','LB','DB'],
+        ['W','W','DB','DB','DB','LB','W','W','W','W','W','W','LB','BG','BG','BG','BG','BG','BG','BG','BG','BG','BG','W','W','W','DB','DB','LB'],
+        ['W','W','W','DB','W','W','W','W','W','W','W','W','W','LB','BG','BG','BG','BG','BG','BG','BG','W','W','W','DB','LB','LB','DB','DB'],
+        ['W','W','W','W','W','W','W','W','W','W','DB','W','W','W','W','W','BG','BG','W','W','W','W','DB','LB','DB','DB','DB','LB','LB'],
+        ['W','W','W','W','W','W','W','W','W','LB','W','DB','LB','W','W','W','W','W','W','DB','DB','LB','DB','DB','LB','LB','DB','W','W'],
+        ['W','W','W','W','W','DB','LB','W','DB','DB','LB','W','DB','DB','LB','W','DB','DB','W','W','DB','DB','LB','W','W','W','W','DB','DB'],
+        ['W','W','LB','W','DB','LB','W','DB','W','DB','DB','W','DB','DB','LB','LB','W','DB','DB','DB','W','W','W','DB','DB','LB','LB','W','W'],
+        ['W','DB','LB','DB','DB','LB','DB','DB','LB','DB','W','DB','W','DB','DB','DB','LB','W','W','DB','DB','DB','LB','DB','DB','DB','DB','LB','LB'],
+        ['LB','DB','DB','LB','DB','DB','LB','DB','DB','LB','W','LB','DB','W','DB','DB','DB','LB','LB','W','W','W','DB','DB','LB','DB','DB','DB','DB'],
+        ['LB','DB','DB','LB','DB','DB','LB','DB','DB','LB','DB','LB','DB','DB','W','W','DB','DB','DB','DB','LB','LB','W','W','DB','LB','LB','DB','DB'],
+        ['DB','LB','DB','DB','LB','DB','DB','LB','DB','DB','LB','DB','LB','DB','DB','DB','W','W','DB','DB','DB','DB','DB','DB','W','DB','DB','DB','DB'],
+      ]
+    },
+    {
+      name: 'Citrouille',
+      maxShots: 20,
+      colors: {
+        O:{n:'Orange', b:'bO', c:'cO', hex:'#FD9110'},
+        K:{n:'Noir', b:'bK', c:'cK', hex:'#000000'},
+        BR:{n:'Marron', b:'bBR', c:'cBR', hex:'#653202'},
+      },
+      grid: [
+        ['','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','K','K','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','K','BR','BR','K','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','K','BR','BR','K','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','K','BR','K','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','K','K','K','K','','K','BR','K','','K','K','K','K','','','','','','','','','','',''],
+        ['','','','','','','','','','K','K','O','O','O','O','K','K','BR','K','K','O','O','O','O','K','K','','','','','','','','',''],
+        ['','','','','','','','K','K','O','O','O','O','O','K','O','O','K','O','O','K','O','O','O','O','O','K','K','','','','','','',''],
+        ['','','','','','','K','O','O','K','O','O','O','K','O','O','O','O','O','O','O','K','O','O','O','K','O','O','K','','','','','',''],
+        ['','','','','','K','O','O','K','O','O','O','O','O','O','O','O','K','O','O','O','O','O','O','O','O','K','O','O','K','','','','',''],
+        ['','','','','','K','O','K','O','O','O','O','K','O','O','O','O','K','O','O','O','O','K','O','O','O','O','K','O','K','','','','',''],
+        ['','','','','K','O','K','O','O','O','O','K','K','K','O','O','O','K','O','O','O','K','K','K','O','O','O','O','K','O','K','','','',''],
+        ['','','','','K','O','K','O','O','O','K','K','K','K','K','O','O','O','O','O','K','K','K','K','K','O','O','O','K','O','K','','','',''],
+        ['','','','','K','O','K','O','O','O','K','K','K','K','K','O','O','O','O','O','K','K','K','K','K','O','O','O','K','O','K','','','',''],
+        ['','','','','K','O','K','O','O','O','O','O','O','O','O','O','O','K','O','O','O','O','O','O','O','O','O','O','K','O','K','','','',''],
+        ['','','','','K','O','K','O','O','O','O','O','O','O','O','O','K','K','K','O','O','O','O','O','O','O','O','O','K','O','K','','','',''],
+        ['','','','','K','O','K','O','O','O','O','O','O','O','O','K','K','K','K','K','O','O','O','O','O','O','O','O','K','O','K','','','',''],
+        ['','','','','K','O','O','O','O','O','O','K','K','O','O','O','O','O','O','O','O','O','K','K','O','O','O','O','O','O','K','','','',''],
+        ['','','','','K','O','O','O','O','O','O','O','K','K','O','O','O','O','O','O','O','K','K','O','O','O','O','O','O','O','K','','','',''],
+        ['','','','','','K','O','K','O','O','O','O','O','K','K','K','K','K','K','K','K','K','O','O','O','O','O','K','O','K','','','','',''],
+        ['','','','','','K','O','O','K','O','O','O','O','O','O','K','K','K','K','K','O','O','O','O','O','O','K','O','O','K','','','','',''],
+        ['','','','','','','K','O','O','K','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','K','O','O','K','','','','','',''],
+        ['','','','','','','','K','K','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','O','K','K','','','','','','',''],
+        ['','','','','','','','','','K','K','O','O','O','O','O','O','K','O','O','O','O','O','O','K','K','','','','','','','','',''],
+        ['','','','','','','','','','','','K','K','K','K','K','K','','K','K','K','K','K','K','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','',''],
+      ]
+    },
+    {
+      name: 'Fantôme',
+      maxShots: 20,
+      colors: {
+        W:{n:'Blanc', b:'bW', c:'cW', hex:'#FFFFFF'},
+        K:{n:'Noir', b:'bK', c:'cK', hex:'#252626'},
+        GR:{n:'Gris', b:'bGR', c:'cGR', hex:'#9C9C9D'},
+      },
+      grid: [
+        ['','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','K','K','K','K','K','K','K','K','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','K','K','K','K','K','K','K','K','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','K','K','W','W','W','W','GR','GR','GR','GR','K','K','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','K','K','W','W','W','W','GR','GR','GR','GR','K','K','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','K','K','W','W','W','W','W','W','W','W','GR','GR','GR','GR','K','K','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','K','K','W','W','W','W','W','W','W','W','GR','GR','GR','GR','K','K','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','K','K','K','K','','','K','K','W','W','W','W','W','W','W','W','W','W','GR','GR','K','K','','','K','K','K','K','','','','','','','','','',''],
+        ['','','','','','','','','K','K','K','K','','','K','K','W','W','W','W','W','W','W','W','W','W','GR','GR','K','K','','','K','K','K','K','','','','','','','','','',''],
+        ['','','','','','','K','K','W','W','GR','GR','K','K','W','W','K','K','W','W','K','K','W','W','W','W','GR','GR','K','K','K','K','W','W','GR','GR','K','K','','','','','','','',''],
+        ['','','','','','','K','K','W','W','GR','GR','K','K','W','W','K','K','W','W','K','K','W','W','W','W','GR','GR','K','K','K','K','W','W','GR','GR','K','K','','','','','','','',''],
+        ['','','','','','','K','K','W','W','W','W','K','K','W','W','K','K','W','W','K','K','W','W','W','W','GR','GR','K','K','W','W','W','W','GR','GR','K','K','','','','','','','',''],
+        ['','','','','','','K','K','W','W','W','W','K','K','W','W','K','K','W','W','K','K','W','W','W','W','GR','GR','K','K','W','W','W','W','GR','GR','K','K','','','','','','','',''],
+        ['','','','','','','','','K','K','W','W','GR','GR','W','W','K','K','W','W','K','K','W','W','W','W','GR','GR','W','W','W','W','GR','GR','K','K','','','','','','','','','',''],
+        ['','','','','','','','','K','K','W','W','GR','GR','W','W','K','K','W','W','K','K','W','W','W','W','GR','GR','W','W','W','W','GR','GR','K','K','','','','','','','','','',''],
+        ['','','','','','','','','K','K','W','W','W','W','W','W','W','W','W','W','W','W','W','W','W','W','W','W','W','W','W','W','GR','GR','K','K','','','','','','','','','',''],
+        ['','','','','','','','','K','K','W','W','W','W','W','W','W','W','W','W','W','W','W','W','W','W','W','W','W','W','W','W','GR','GR','K','K','','','','','','','','','',''],
+        ['','','','','','','','','','','K','K','W','W','W','W','W','W','K','K','W','W','W','W','W','W','W','W','W','W','GR','GR','K','K','','','','','','','','','','','',''],
+        ['','','','','','','','','','','K','K','W','W','W','W','W','W','K','K','W','W','W','W','W','W','W','W','W','W','GR','GR','K','K','','','','','','','','','','','',''],
+        ['','','','','','','','','','','K','K','W','W','W','W','W','W','K','K','W','W','W','W','W','W','W','W','GR','GR','K','K','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','K','K','W','W','W','W','W','W','K','K','W','W','W','W','W','W','W','W','GR','GR','K','K','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','K','K','W','W','W','W','W','W','W','W','W','W','W','W','GR','GR','GR','GR','K','K','K','K','K','K','K','K','','','','','','','',''],
+        ['','','','','','','','','','','','','K','K','W','W','W','W','W','W','W','W','W','W','W','W','GR','GR','GR','GR','K','K','K','K','K','K','K','K','','','','','','','',''],
+        ['','','','','','','','','','','','','K','K','W','W','W','W','W','W','W','W','W','W','W','W','W','W','GR','GR','K','K','W','W','W','W','W','W','K','K','','','','','',''],
+        ['','','','','','','','','','','','','K','K','W','W','W','W','W','W','W','W','W','W','W','W','W','W','GR','GR','K','K','W','W','W','W','W','W','K','K','','','','','',''],
+        ['','','','','','','','','','','','','','','K','K','W','W','W','W','W','W','W','W','W','W','W','W','W','W','W','W','W','W','GR','GR','K','K','K','K','','','','','',''],
+        ['','','','','','','','','','','','','','','K','K','W','W','W','W','W','W','W','W','W','W','W','W','W','W','W','W','W','W','GR','GR','K','K','K','K','','','','','',''],
+        ['','','','','','','','','','','','','','','','','K','K','GR','GR','W','W','W','W','W','W','W','W','W','W','W','W','GR','GR','K','K','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','K','K','GR','GR','W','W','W','W','W','W','W','W','W','W','W','W','GR','GR','K','K','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','K','K','K','K','GR','GR','GR','GR','GR','GR','GR','GR','K','K','K','K','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','K','K','K','K','GR','GR','GR','GR','GR','GR','GR','GR','K','K','K','K','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','','','K','K','K','K','K','K','K','K','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','','','K','K','K','K','K','K','K','K','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','',''],
+      ]
+    },
+    {
+      name: 'Sapin',
+      maxShots: 20,
+      colors: {
+        G:{n:'Vert', b:'bG', c:'cG', hex:'#41AB12'},
+        K:{n:'Noir', b:'bK', c:'cK', hex:'#191E0F'},
+        Y:{n:'Jaune', b:'bY', c:'cY', hex:'#F2F131'},
+        R:{n:'Rouge', b:'bR', c:'cR', hex:'#E33E30'},
+        PU:{n:'Violet', b:'bPU', c:'cPU', hex:'#D43ADF'},
+        BL:{n:'Bleu', b:'bBL', c:'cBL', hex:'#5084E4'},
+        OR:{n:'Orange', b:'bOR', c:'cOR', hex:'#D77313'},
+      },
+      grid: [
+        ['','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','','','K','','','','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','','K','Y','K','','','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','','K','Y','K','','','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','K','K','K','Y','Y','Y','K','K','K','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','K','Y','Y','Y','Y','Y','Y','Y','Y','Y','K','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','K','K','Y','Y','Y','Y','Y','K','K','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','K','Y','Y','Y','K','','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','K','Y','Y','Y','K','','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','K','Y','Y','K','Y','Y','K','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','K','Y','K','G','K','Y','K','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','K','K','K','G','G','K','K','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','','K','G','G','K','','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','K','G','G','G','G','K','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','K','G','G','G','G','G','G','K','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','K','K','G','G','G','G','G','G','G','K','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','K','Y','Y','K','K','K','G','G','G','G','G','K','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','K','G','K','Y','Y','Y','Y','K','K','K','K','K','K','K','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','K','G','G','K','K','K','K','Y','Y','Y','Y','Y','Y','Y','Y','K','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','K','G','G','K','R','R','K','G','K','K','K','K','K','K','K','K','G','K','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','K','G','G','K','R','R','R','R','K','G','G','G','G','G','G','G','G','G','G','K','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','K','G','G','G','K','R','R','R','R','K','G','G','G','G','G','G','G','G','G','G','G','K','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','K','G','G','G','G','G','K','R','R','K','G','G','G','G','G','G','G','G','G','G','G','G','K','','','','','','','','','','','',''],
+        ['','','','','','','','','','','K','G','G','G','G','G','G','G','K','K','G','G','G','G','G','G','G','G','G','G','G','G','K','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','K','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','K','K','','K','K','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','K','G','G','G','G','G','G','G','G','G','G','G','G','G','K','K','K','K','K','','K','BL','BL','K','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','K','K','K','K','K','K','K','K','K','K','K','K','K','Y','Y','Y','Y','K','K','BL','BL','BL','BL','K','','','','','','','','',''],
+        ['','','','','','','','','','','','','','K','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','K','K','K','K','G','K','BL','BL','BL','BL','K','','','','','','','','',''],
+        ['','','','','','','','','','','','','','K','K','K','K','K','K','K','K','K','K','K','K','K','G','G','G','G','G','G','K','BL','BL','K','','','','','','','','','',''],
+        ['','','','','','','','','','','','','K','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','K','K','G','G','G','K','K','','','','','','','','','','',''],
+        ['','','','','','','','','','','','K','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','K','PU','PU','K','G','G','K','','','','','','','','','','','',''],
+        ['','','','','','','','','','','K','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','K','PU','PU','PU','PU','K','G','G','K','','','','','','','','','','',''],
+        ['','','','','','','','','','K','Y','K','G','K','K','G','G','G','G','G','G','G','G','G','G','G','K','PU','PU','PU','PU','K','G','G','G','K','','','','','','','','','',''],
+        ['','','','','','','','','K','K','Y','Y','K','OR','OR','K','G','G','G','G','G','G','G','G','G','G','G','K','PU','PU','K','G','G','G','G','G','K','','','','','','','','',''],
+        ['','','','','','','','K','G','G','K','K','OR','OR','OR','OR','K','G','G','G','G','G','G','G','G','G','G','G','K','K','G','G','G','G','G','G','G','K','','','','','','','',''],
+        ['','','','','','K','K','G','G','G','G','K','OR','OR','OR','OR','K','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','K','','','','','','',''],
+        ['','','','','K','G','G','G','G','G','G','G','K','OR','OR','K','K','K','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','K','','','','','','',''],
+        ['','','','','','K','G','G','G','G','G','G','G','K','K','Y','Y','Y','K','K','K','G','G','G','G','G','G','G','G','G','G','G','G','G','G','K','K','K','K','','','','','','',''],
+        ['','','','','','','K','G','G','G','G','G','G','G','G','K','K','Y','Y','Y','Y','K','K','K','K','K','K','K','K','K','K','K','K','K','K','','K','R','R','K','','','','','',''],
+        ['','','','','','K','K','K','K','K','G','G','G','G','G','G','G','K','K','K','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','K','R','R','R','R','K','','','','',''],
+        ['','','','','K','PU','PU','K','','','K','G','G','G','G','G','G','G','G','G','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','R','R','R','R','K','','','','',''],
+        ['','','','K','PU','PU','PU','PU','K','','K','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','K','K','R','R','K','','','','','',''],
+        ['','','','K','PU','PU','PU','PU','K','','K','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','K','K','Y','Y','K','K','','','','','','',''],
+        ['','','','','K','PU','PU','K','','K','G','G','G','G','G','K','K','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','K','Y','Y','Y','K','','','','','','','','',''],
+        ['','','','','','K','K','K','K','G','G','G','G','G','K','BL','BL','K','G','G','G','G','G','G','G','G','G','G','G','G','K','K','Y','Y','K','K','G','K','','','','','','','',''],
+        ['','','','','','','','K','G','G','G','G','G','K','BL','BL','BL','BL','K','G','G','G','G','G','G','G','G','G','K','K','Y','Y','Y','K','G','G','G','G','K','','','','','','',''],
+        ['','','','','','','K','G','G','G','G','G','G','K','BL','BL','BL','BL','K','G','G','G','G','G','G','G','K','K','Y','Y','Y','K','K','G','G','G','G','G','G','K','','','','','',''],
+        ['','','','','K','K','Y','K','K','G','G','G','G','G','K','BL','BL','K','G','G','G','G','G','G','K','K','Y','Y','Y','K','K','G','G','G','G','G','G','G','G','K','','','','','',''],
+        ['','','','K','G','K','Y','Y','Y','K','K','K','K','G','G','K','K','G','G','G','K','K','K','K','Y','Y','Y','K','K','G','G','G','G','G','G','G','G','G','G','G','K','','','','',''],
+        ['','','K','G','G','G','K','K','Y','Y','Y','Y','Y','K','K','K','K','K','K','K','Y','Y','Y','Y','Y','K','K','G','G','G','G','G','K','K','G','G','G','G','G','G','G','K','','','',''],
+        ['','K','G','G','G','G','G','G','K','K','K','K','Y','Y','Y','Y','Y','Y','Y','Y','Y','K','K','K','K','G','G','G','G','G','G','K','OR','OR','K','G','G','G','G','G','G','G','K','','',''],
+        ['','K','K','G','G','G','G','G','G','G','G','G','K','K','K','K','K','K','K','K','K','G','G','G','G','G','G','G','G','G','K','OR','OR','OR','OR','K','G','G','G','G','G','G','G','K','',''],
+        ['','','','K','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','K','OR','OR','OR','OR','K','G','G','G','G','G','G','G','G','K',''],
+        ['','','','','K','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','K','OR','OR','K','G','G','G','G','G','G','G','G','G','K',''],
+        ['','','','','','K','K','K','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','K','K','G','G','G','G','G','G','G','G','K','K','',''],
+        ['','','','','','','','','K','K','K','K','K','G','G','G','G','K','K','K','K','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','G','K','K','K','','','',''],
+        ['','','','','','','','','','','','','','K','K','K','K','','','','K','K','K','K','G','G','G','G','G','G','G','G','G','G','G','G','K','K','K','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','K','OR','OR','OR','K','K','K','K','K','K','K','K','K','K','K','K','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','K','OR','OR','OR','K','','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','K','OR','OR','OR','K','','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','K','OR','OR','OR','K','','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','','K','K','K','','','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','',''],
+      ]
+    },
+    {
+      name: 'La Jeune Fille a la perle',
+      maxShots: 20,
+      colors: {
+        K:{n:'Noir', b:'bK', c:'cK', hex:'#191A18'},
+        OR:{n:'Turban orange', b:'bOR', c:'cOR', hex:'#DE8D44'},
+        SK:{n:'Peau', b:'bSK', c:'cSK', hex:'#ECC7A3'},
+        BL:{n:'Bleu turban', b:'bBL', c:'cBL', hex:'#2254A8'},
+        LB:{n:'Bleu clair', b:'bLB', c:'cLB', hex:'#82ADE7'},
+        GD:{n:'Dore', b:'bGD', c:'cGD', hex:'#D9C76F'},
+        OR2:{n:'Orange fonce', b:'bOR2', c:'cOR2', hex:'#C2804A'},
+        PK:{n:'Rose joue', b:'bPK', c:'cPK', hex:'#B38681'},
+        CY:{n:'Cyan clair', b:'bCY', c:'cCY', hex:'#A1DFED'},
+        GY:{n:'Gris', b:'bGY', c:'cGY', hex:'#C2CFC5'},
+      },
+      grid: [
+        ['','','','','','','','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','K','K','K','K','','','','','','','','','','',''],
+        ['','','','','','','','','','','','K','OR','OR','OR','GD','K','K','K','','','','','','','',''],
+        ['','','','','','','','','K','K','K','K','K','K','GD','OR','OR','K','GD','K','','','','','','',''],
+        ['','','','','','','','K','CY','LB','LB','LB','LB','BL','K','K','GD','OR','K','OR','K','','','','','',''],
+        ['','','','','','','K','CY','LB','LB','LB','LB','LB','LB','LB','BL','K','GD','K','OR','K','','','','','',''],
+        ['','','','','','','K','K','K','K','K','LB','LB','BL','BL','BL','LB','K','OR','OR','K','','','','','',''],
+        ['','','','','','K','SK','SK','SK','SK','SK','K','K','LB','LB','LB','BL','K','OR','OR','GD','K','','','','',''],
+        ['','','','','','K','SK','SK','SK','SK','SK','SK','SK','K','BL','BL','BL','BL','K','OR','GD','K','','','','',''],
+        ['','','','','','K','SK','SK','SK','SK','SK','SK','SK','SK','K','BL','LB','BL','K','OR','GD','K','','','','',''],
+        ['','','','','','K','K','SK','SK','SK','K','SK','SK','SK','K','BL','BL','BL','K','OR','GD','K','','','','',''],
+        ['','','','','','K','SK','K','SK','SK','SK','K','SK','SK','K','K','BL','BL','K','OR','GD','OR','K','','','',''],
+        ['','','','','','K','SK','K','SK','SK','SK','K','SK','SK','SK','SK','K','BL','K','OR','GD','OR','K','','','',''],
+        ['','','','','','K','PK','SK','K','SK','SK','PK','PK','SK','SK','SK','K','BL','K','OR','GD','OR','K','','','',''],
+        ['','','','','','K','SK','SK','SK','SK','SK','SK','SK','SK','K','K','','K','OR','GD','GD','OR','K','','','',''],
+        ['','','','','','K','SK','SK','K','K','SK','SK','SK','K','','GY','K','K','OR','GD','GD','OR','K','','','',''],
+        ['','','','','','','K','SK','SK','SK','SK','K','K','K','GY','PK','K','K','OR','GD','OR','OR','K','','','',''],
+        ['','','','','','','','K','K','K','K','SK','SK','SK','K','K','','K','OR','GD','OR','GD','K','','','',''],
+        ['','','','','','','','','','','K','SK','K','K','','','OR','K','OR','GD','K','GD','K','','','',''],
+        ['','','','','','','','','','','K','K','','','OR','OR','OR','K','OR','GD','K','LB','K','','','',''],
+        ['','','','','','','','','','','','','GD','K','K','K','K','K','LB','LB','K','BL','K','','','',''],
+        ['','','','','','','','','K','','GD','K','K','GD','OR','OR','OR2','K','BL','BL','K','K','','','','',''],
+        ['','','','','','','','','K','GD','K','OR','OR','GD','OR','OR','OR2','K','K','K','','','','','','',''],
+        ['','','','','','','','K','GD','K','OR','GD','GD','GD','GD','OR','OR2','OR2','OR2','OR2','K','','','','','',''],
+        ['','','','','','','','K','GD','K','GD','GD','GD','GD','GD','OR','OR','OR','OR','OR2','K','','','','','',''],
+        ['','','','','','','K','GD','K','OR','GD','GD','GD','GD','GD','OR','OR','OR','OR','OR2','K','','','','','',''],
+        ['','','','','','','K','K','K','K','K','K','K','K','K','K','K','K','K','K','K','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','','','','','','',''],
+      ]
+    },
+    {
+      name: 'Plage',
+      maxShots: 20,
+      colors: {
+        SK:{n:'Rose ciel', b:'bSK', c:'cSK', hex:'#FABAB2'},
+        BL:{n:'Bleu ocean', b:'bBL', c:'cBL', hex:'#1492E2'},
+        DG:{n:'Vert fonce', b:'bDG', c:'cDG', hex:'#216115'},
+        OR:{n:'Orange sable', b:'bOR', c:'cOR', hex:'#FDB884'},
+        LB2:{n:'Bleu clair', b:'bLB2', c:'cLB2', hex:'#8BBAE9'},
+        W:{n:'Blanc', b:'bW', c:'cW', hex:'#F3F5F6'},
+        SD:{n:'Sable fonce', b:'bSD', c:'cSD', hex:'#C79E46'},
+        CY:{n:'Cyan', b:'bCY', c:'cCY', hex:'#319CF5'},
+        BR:{n:'Marron tronc', b:'bBR', c:'cBR', hex:'#774C1C'},
+        SD2:{n:'Sable dore', b:'bSD2', c:'cSD2', hex:'#DCB65E'},
+        LB3:{n:'Bleu moyen', b:'bLB3', c:'cLB3', hex:'#5BABF4'},
+        DB:{n:'Bleu profond', b:'bDB', c:'cDB', hex:'#086FCC'},
+        Y:{n:'Jaune soleil', b:'bY', c:'cY', hex:'#F7D47B'},
+        GR:{n:'Vert clair', b:'bGR', c:'cGR', hex:'#568D1B'},
+        RD:{n:'Rouge etoile', b:'bRD', c:'cRD', hex:'#DD5B34'},
+        LB4:{n:'Bleu pale', b:'bLB4', c:'cLB4', hex:'#ADBED8'},
+        RD2:{n:'Rouge clair', b:'bRD2', c:'cRD2', hex:'#F0947A'},
+      },
+      grid: [
+        ['CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY'],
+        ['CY','CY','CY','CY','W','W','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY'],
+        ['CY','CY','CY','W','W','W','W','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','GR','DG','CY','CY','CY'],
+        ['CY','CY','W','W','W','W','W','W','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','CY','DG','DG','LB3','LB2','DG','DG','CY','CY','CY','CY'],
+        ['CY','W','W','W','W','W','W','W','W','W','LB3','LB3','LB3','LB3','LB3','LB3','LB3','LB3','LB3','LB3','LB3','DG','DG','LB4','DG','DG','GR','GR','LB3','LB3'],
+        ['LB3','LB3','LB3','LB3','LB3','LB3','LB3','LB3','LB3','LB3','LB3','LB3','LB3','W','LB3','LB3','LB3','LB3','LB3','GR','GR','GR','DG','DG','DG','DG','LB3','GR','GR','LB3'],
+        ['LB3','LB3','LB3','LB3','LB3','LB3','LB3','LB3','LB3','LB3','LB3','LB3','W','W','W','LB3','LB3','LB3','DG','DG','DG','DG','GR','DG','BR','DG','DG','LB3','LB3','LB3'],
+        ['LB2','LB2','LB2','LB2','LB2','LB2','LB2','LB2','LB2','LB2','LB2','LB2','LB2','LB2','LB2','LB2','LB2','LB2','DG','LB2','LB2','LB2','DG','DG','BR','LB4','DG','GR','LB2','LB2'],
+        ['LB4','LB4','LB4','LB4','Y','Y','Y','LB4','LB4','LB4','LB4','LB4','LB4','LB4','LB4','LB4','LB4','LB4','LB4','LB4','LB4','GR','DG','LB3','SD','BR','SK','GR','LB4','SK'],
+        ['SK','SK','SK','Y','Y','Y','Y','Y','SK','SK','SK','SK','SK','SK','SK','SK','SK','SK','SK','LB4','LB4','GR','DG','SK','SK','BR','SK','LB4','SK','SK'],
+        ['SK','SK','Y','Y','SK','W','W','Y','Y','SK','SK','SK','SK','SK','SK','W','W','SK','SK','SK','SK','DG','SK','SK','SK','BR','BR','SK','SK','GR'],
+        ['OR','OR','OR','Y','Y','W','SK','Y','OR','OR','OR','OR','OR','OR','W','W','W','W','W','OR','OR','OR','OR','OR','OR','OR','BR','OR','DG','GR'],
+        ['OR','OR','OR','Y','Y','Y','Y','Y','OR','OR','OR','OR','OR','OR','OR','OR','OR','OR','OR','OR','OR','OR','OR','GR','DG','OR','BR','GR','GR','DG'],
+        ['OR','OR','OR','OR','OR','OR','OR','OR','OR','OR','OR','OR','OR','OR','OR','OR','OR','OR','OR','OR','OR','OR','DG','DG','DG','DG','BR','DG','DG','DG'],
+        ['DB','DB','DB','LB3','LB3','Y','Y','LB3','LB3','DB','DB','DB','DB','DB','DB','DB','DB','DB','DB','DG','DG','DG','DG','DG','DG','DG','BR','BR','DG','DG'],
+        ['DB','BL','BL','BL','CY','Y','LB3','CY','BL','BL','BL','DB','DB','DB','DB','CY','CY','BL','DG','DG','DG','DG','BR','BR','BR','BR','BR','BR','BR','BR'],
+        ['DB','DB','DB','LB3','LB2','LB4','Y','LB4','LB3','DB','DB','DB','DB','BL','W','W','SD','SD2','SD2','SD2','SD2','SD2','SD','SD','BR','BR','BR','BR','BR','BR'],
+        ['DB','BL','BL','BL','CY','Y','LB2','CY','BL','BL','DB','BL','BL','BL','BL','CY','W','W','W','SD2','SD2','Y','SD2','Y','SD2','SD2','SD2','SD2','SD','SD2'],
+        ['DB','DB','BL','LB3','LB4','LB2','Y','LB4','LB3','BL','BL','BL','BL','BL','LB3','CY','CY','CY','LB3','W','W','SD2','SD2','SD2','Y','Y','Y','Y','Y','SD2'],
+        ['BL','BL','DB','DB','CY','Y','LB4','LB3','BL','BL','BL','CY','LB3','CY','BL','BL','CY','LB3','W','W','LB4','Y','Y','Y','Y','Y','SD','Y','Y','Y'],
+        ['DB','DB','BL','CY','CY','CY','LB2','LB2','LB3','LB3','BL','BL','BL','BL','LB3','W','W','W','LB4','SD2','SD2','Y','Y','SD2','Y','Y','Y','Y','SD2','Y'],
+        ['DB','DB','BL','BL','BL','LB4','LB4','LB3','BL','BL','BL','CY','CY','BL','BL','W','SD2','SD2','SD2','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y'],
+        ['DB','DB','BL','LB3','LB2','LB3','LB3','BL','BL','CY','CY','CY','LB3','W','W','W','W','SD2','Y','Y','Y','Y','Y','Y','SD','Y','Y','Y','Y','Y'],
+        ['BL','BL','BL','BL','BL','BL','LB2','LB3','CY','LB3','W','W','W','W','LB2','LB2','SD2','SD2','Y','Y','Y','SD','Y','Y','Y','Y','Y','SD','Y','Y'],
+        ['BL','CY','CY','CY','BL','CY','BL','BL','CY','W','LB2','LB2','LB2','LB2','SD2','SD2','SD2','SD2','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y'],
+        ['BL','BL','BL','LB2','LB2','CY','BL','BL','BL','LB4','W','SD2','SD2','SD2','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','SD2'],
+        ['CY','BL','BL','BL','BL','CY','LB3','W','W','W','W','SD2','SD2','Y','Y','Y','Y','SD2','Y','Y','SD','Y','Y','Y','Y','SD','Y','Y','Y','Y'],
+        ['BL','BL','BL','CY','LB2','LB3','W','W','LB2','LB2','SD2','SD2','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','SD2','Y'],
+        ['BL','LB2','LB2','LB2','W','W','W','LB2','LB2','SD2','SD2','Y','GR','DG','Y','Y','Y','DG','DG','DG','Y','Y','Y','Y','SD','Y','Y','Y','Y','Y'],
+        ['W','W','W','W','W','LB2','LB2','LB4','SD2','SD2','Y','GR','GR','GR','DG','Y','DG','GR','DG','GR','DG','DG','Y','Y','Y','Y','Y','Y','Y','Y'],
+        ['W','W','LB4','LB2','LB2','LB4','LB4','SD2','SD2','Y','Y','GR','DG','GR','GR','DG','GR','DG','GR','DG','GR','DG','DG','Y','Y','Y','SD','Y','Y','Y'],
+        ['W','W','LB2','LB4','SD2','SD2','SD2','SD2','Y','Y','Y','Y','GR','GR','GR','DG','DG','DG','GR','DG','DG','GR','DG','DG','Y','Y','Y','Y','Y','SD2'],
+        ['LB4','LB4','LB4','SD2','Y','Y','Y','Y','Y','SD2','Y','Y','Y','Y','DG','SD2','DG','DG','DG','GR','GR','Y','Y','Y','Y','RD2','Y','Y','Y','Y'],
+        ['LB4','SD2','SD2','Y','Y','SD2','Y','SD2','Y','Y','Y','Y','Y','DG','DG','DG','Y','Y','DG','DG','DG','Y','Y','Y','Y','RD2','Y','Y','Y','Y'],
+        ['SD2','Y','Y','Y','Y','SD2','Y','Y','Y','SD2','Y','Y','Y','SD2','GR','GR','SD','SD','SD','SD','SD','Y','Y','Y','Y','RD2','Y','Y','Y','Y'],
+        ['Y','Y','Y','SD','Y','Y','Y','Y','Y','SD2','Y','Y','Y','Y','SD','SD','SD2','SD2','SD2','SD2','SD2','Y','RD','RD','RD','RD','RD','RD','RD','Y'],
+        ['Y','Y','Y','Y','Y','Y','Y','SD','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','RD','RD','RD2','RD','RD','Y','Y'],
+        ['Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','SD','Y','Y','Y','Y','SD2','Y','Y','SD','Y','Y','Y','RD','RD','RD','Y','Y','Y'],
+        ['Y','Y','SD','Y','Y','Y','Y','Y','Y','SD2','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','RD','RD','Y','RD','RD','Y','Y'],
+        ['Y','Y','Y','Y','Y','SD2','Y','Y','Y','Y','Y','Y','Y','Y','Y','SD2','Y','Y','Y','SD2','Y','Y','Y','RD','Y','Y','Y','RD','Y','Y'],
+        ['Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y'],
+      ]
+    },
+    {
+      name: 'T-Rex',
+      maxShots: 20,
+      colors: {
+        G1:{n:'Vert', b:'bG1', c:'cG1', hex:'#6A8130'},
+        K:{n:'Noir', b:'bK', c:'cK', hex:'#060A06'},
+        R1:{n:'Rouge fonce', b:'bR1', c:'cR1', hex:'#800708'},
+        G2:{n:'Vert fonce', b:'bG2', c:'cG2', hex:'#2B410D'},
+        G3:{n:'Vert clair', b:'bG3', c:'cG3', hex:'#8DA147'},
+        R2:{n:'Rouge', b:'bR2', c:'cR2', hex:'#E23221'},
+        Y:{n:'Jaune', b:'bY', c:'cY', hex:'#ECDA64'},
+        W:{n:'Blanc', b:'bW', c:'cW', hex:'#FEFEFE'},
+        R3:{n:'Rouge sombre', b:'bR3', c:'cR3', hex:'#540103'},
+      },
+      grid: [
+        ['','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','K','K','K','K','','','','','K','K','K','K','K','','','','','','','',''],
+        ['','','','','','','','','','','','K','G3','G3','G3','G3','K','K','K','K','G3','G3','G3','G3','G3','K','','','','','','',''],
+        ['','','','','','','','','','','K','G3','G2','G2','G1','G3','G3','G3','G3','G3','G3','K','K','G3','G3','G3','K','','','','','',''],
+        ['','','','','','','','','','K','G1','G2','G2','K','K','G2','G2','G1','G1','G1','G3','G3','G3','G1','G3','G3','K','','','','','',''],
+        ['','','','','','','','','K','G1','G1','G1','K','Y','Y','K','G2','G1','G1','G1','G3','G3','G3','G3','G3','G3','K','','','','','',''],
+        ['','','','','','','','K','G1','G1','G1','G1','K','Y','K','K','G1','G1','G1','G1','G1','G1','G1','G1','G1','G1','G1','K','','','','',''],
+        ['','','','','','','K','G1','G1','G1','G1','G1','G1','G2','G2','G1','G1','G1','G1','G1','G1','K','K','K','K','K','G1','K','','','','',''],
+        ['','','','','','','K','G1','G1','G1','G1','G1','G1','G1','G1','G1','G1','G1','G1','K','K','W','R3','W','R1','W','K','K','','','','',''],
+        ['','','','','','K','G1','G1','G1','G1','G1','G1','G1','G1','G1','G1','G1','K','K','W','R1','W','R3','W','R3','W','K','','','','','',''],
+        ['','','','','','K','G1','G1','G1','G1','G2','K','G1','G1','G1','G1','K','W','R1','W','R1','R1','R1','R1','R3','K','','','','','','',''],
+        ['','','','','','K','G1','G1','G2','G1','G1','G2','K','K','K','K','R1','W','R3','R1','R1','R1','R1','K','K','','','','','','','',''],
+        ['','','','','','K','G1','G1','K','G1','G1','G1','R1','R1','R1','K','R3','R3','R3','R1','R1','K','K','','','','','','','','','',''],
+        ['','','','','K','G1','G1','G1','K','G1','G1','G1','G1','R2','R2','K','R3','R3','R3','R1','R3','K','','','','','','','','','','',''],
+        ['','','','','K','G1','G1','G1','K','G1','G1','G1','G1','G1','R2','K','R1','R1','R1','K','R3','K','','','','','','','','','','',''],
+        ['','','','','K','G1','G1','G1','K','G2','G1','G1','G1','G1','G1','K','R1','R1','R2','R2','K','R3','K','','','','','','','','','',''],
+        ['','','','','K','G1','G1','G1','G2','K','G1','G1','G1','G1','G1','G1','K','W','R1','R2','R2','K','R1','K','','','','','','','','',''],
+        ['','','','','K','G1','G1','G2','G2','K','G2','G1','G1','G1','G1','G1','K','W','R1','R1','R2','K','R1','R1','K','','','','','','','',''],
+        ['','','','','K','G1','G1','G2','G1','G2','K','G2','G1','G1','G1','G1','G1','K','R1','W','R1','R1','R1','W','K','','','','','','','',''],
+        ['','','','','K','G1','G1','G2','G1','G1','G2','K','K','K','G2','G1','G1','G1','K','W','R1','W','R1','W','K','K','','','','','','',''],
+        ['','','','','K','G1','G2','G2','G1','G1','G1','G2','G2','G2','K','G2','G1','G1','G1','K','K','W','R1','K','G1','K','','','','','','',''],
+        ['','','','','','K','G2','G1','G1','G1','G1','G1','G2','G2','G2','K','K','G2','G1','G1','G1','K','K','G1','G1','K','','','','','','',''],
+        ['','','','','','K','G2','G1','G1','G1','G1','G1','G1','G2','K','','','K','K','G1','G1','G1','G1','G1','K','','','','','','','',''],
+        ['','','','','','','K','G1','G1','G1','G1','G1','G1','G2','K','','','','','K','K','K','K','K','','','','','','','','',''],
+        ['','','','','','','','K','G1','G1','G1','G1','G1','G2','G2','K','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','K','K','K','K','K','K','K','K','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','',''],
+        ['','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','',''],
+      ]
+    },
+    {
+      name: 'Caravelle',
+      maxShots: 20,
+      colors: {
+        SK1:{n:'Ciel bleu', b:'bSK1', c:'cSK1', hex:'#83BAD4'},
+        SE1:{n:'Mer foncee', b:'bSE1', c:'cSE1', hex:'#1A4D5B'},
+        SL2:{n:'Voile ombre', b:'bSL2', c:'cSL2', hex:'#B8B099'},
+        SE2:{n:'Mer moyenne', b:'bSE2', c:'cSE2', hex:'#3A7C83'},
+        HD:{n:'Coque foncee', b:'bHD', c:'cHD', hex:'#302114'},
+        RD:{n:'Croix rouge', b:'bRD', c:'cRD', hex:'#7A3F36'},
+        SL1:{n:'Voile claire', b:'bSL1', c:'cSL1', hex:'#DFDAC5'},
+        SK2:{n:'Ciel clair', b:'bSK2', c:'cSK2', hex:'#99C4D5'},
+        SE3:{n:'Mer turquoise', b:'bSE3', c:'cSE3', hex:'#4A8A90'},
+        SE4:{n:'Mer bleu fonce', b:'bSE4', c:'cSE4', hex:'#26636E'},
+        HM:{n:'Coque moyenne', b:'bHM', c:'cHM', hex:'#49382A'},
+        SK3:{n:'Ciel moyen', b:'bSK3', c:'cSK3', hex:'#70A2BB'},
+        SE5:{n:'Mer profonde', b:'bSE5', c:'cSE5', hex:'#153D4D'},
+        SK4:{n:'Ciel tres clair', b:'bSK4', c:'cSK4', hex:'#BAD9E6'},
+        SL3:{n:'Voile beige', b:'bSL3', c:'cSL3', hex:'#CCC4AC'},
+        HK:{n:'Gris fonce', b:'bHK', c:'cHK', hex:'#736954'},
+        LD:{n:'Terre lointaine', b:'bLD', c:'cLD', hex:'#456A65'},
+        SK5:{n:'Ciel', b:'bSK5', c:'cSK5', hex:'#79ADC7'},
+        SK6:{n:'Ciel pale', b:'bSK6', c:'cSK6', hex:'#AAD0E0'},
+        SK7:{n:'Transition', b:'bSK7', c:'cSK7', hex:'#5C90A5'},
+        SL4:{n:'Voile grise', b:'bSL4', c:'cSL4', hex:'#9B8E7C'},
+        FM:{n:'Ecume', b:'bFM', c:'cFM', hex:'#8FADAF'},
+      },
+      grid: [
+        ['SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK5','SK5','SK3','SK5','SK3','SK7','SK5','SK3','SK5','SK3','SK3','SK5','SK3','SK5','SK7','SK5','SK1','SK5','SK5','SK5','SK5','SK1','SK5','SK5','SK1','SK5','SK1','SK1','SK1','SK1','SK1','SK1','SK1'],
+        ['SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK5','SK5','SK1','SK1','SK5','SK5','SK3','SK3','SK5','SK3','SK7','SK3','SK3','SK5','SK3','SK3','SK3','SK7','SK3','SK7','SK5','SK3','SK3','SK5','SK3','SK3','SK5','SK3','SK3','SK5','SK3','SK1','SK1','SK1','SK1','SK1','SK1','SK1'],
+        ['SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK5','SK1','SK1','SK1','SK3','SK3','SK3','SK5','SK3','SK7','SK3','SK3','SK5','SK3','SK3','SK5','SK7','SK3','SK7','SK5','SK5','SK5','SK5','SK3','SK3','SK5','SK3','SK5','SK5','SK5','SK1','SK1','SK1','SK1','SK1','SK1','SK1'],
+        ['SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK5','SK1','SK1','SK1','SK5','SK5','SK3','SK5','SK3','SK7','SK5','SK3','SK5','SK3','SK3','SK5','SK7','SK3','SK7','SK5','SK5','SK5','SK5','SK3','SK5','SK5','SK3','SK5','SK5','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1'],
+        ['SK1','SK1','SK1','SK1','SK1','SK1','SK2','SK1','SK6','SK6','SK1','SK1','SK1','SK1','SK5','SK1','SK1','SK1','SK5','SK5','SK3','SK5','SK3','SK7','SK5','SK3','SK5','SK3','SK3','SK5','SK7','SK5','SK7','SK5','SK5','SK5','SK5','SK3','SK5','SK5','SK3','SK5','SK5','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1'],
+        ['SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK4','SK6','SK4','SK4','SK4','SK4','SK1','SK1','SK1','SK1','SK5','SK5','SK5','SK3','SK5','SK3','SK7','SE3','HM','SK5','SK3','SK3','SK5','SK3','SK5','SK7','SK5','SK5','SK5','SK5','SK5','SK5','SK1','SK3','SK5','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1'],
+        ['SK1','SK1','SK1','SK1','SK1','SK4','SK4','SK4','SK4','SK4','SK4','SK4','SK4','SK4','SK6','SK1','SK1','SK1','SK5','SK5','SK3','SK5','SK3','SK7','SE3','HM','SK5','SK3','SK3','SK5','SK3','SK5','SK7','SK5','SK5','LD','SK7','SK5','LD','SK5','SK3','SK5','SK5','SK5','SK1','SK1','SK1','SK1','SK1','SK1','SK1'],
+        ['SK1','SK1','SK1','SK1','SK4','SK4','SK4','SK4','SK4','SK4','SK4','SK4','SK4','SK4','SK6','SK4','SK1','SK1','SK3','SK5','SK3','SK5','SK3','SK7','SE3','HM','SK5','SK3','SK3','SK5','SK7','SK5','SK7','SK5','SK5','SK5','LD','LD','SK5','SK5','SK5','SK5','SK1','SK5','SK1','SK1','SK1','SK1','SK1','SK1','SK1'],
+        ['SK1','SK1','SK1','SK4','SK4','SK4','SK4','SK4','SK4','SK6','SK4','SK4','SK4','SK4','SK6','SK4','SK4','SK4','SK3','SK5','SK3','SK5','SK3','SK7','SE3','HM','SK5','SK3','SK3','SK5','SK7','SK5','SK7','SK5','SK5','SK3','SK5','SK3','SK5','SK5','SK3','SK5','SK5','SK5','SK1','SK1','SK1','SK1','SK1','SK1','SK1'],
+        ['SK1','SK1','SK1','SK1','SK2','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK5','SK1','SK1','SK5','SK5','SK5','SK3','SK5','SK3','SK7','SE3','HM','SK5','SK3','SK3','SK5','SK7','SK5','SK7','SK5','SK5','SK5','SK5','SK3','SK5','SK5','SK3','LD','SK5','LD','SK1','SK1','SK1','SK1','SK1','SK1','SK1'],
+        ['SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK5','SK1','SK1','SK5','SK5','SK3','HD','HD','HD','HD','HM','HD','HM','HD','HM','SK5','SK7','HM','SE2','SK5','SK5','SK5','SK5','SK3','SK5','SK5','SK3','SK5','LD','SK5','SK1','SK1','SK1','SK1','SK1','SK1','SK1'],
+        ['SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK5','SK5','SK1','SK1','SK5','SK5','SK5','FM','SL3','SL3','SL2','SL1','SL3','SL3','FM','SK3','SK5','SK3','HM','LD','SK5','SK5','SK3','SK5','SK3','SK5','SK5','SK3','SK5','SK5','SK5','SK1','SK1','SK1','SK1','SK1','SK1','SK1'],
+        ['SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK5','SK1','SK1','SK1','SK5','SK5','SK3','FM','SL3','SL2','SL1','SL3','SL1','SL3','FM','SK3','SK3','HM','LD','SK5','SK5','SK5','SK5','SK3','SK5','SK5','SK3','SK5','SK1','SK1','SK1','SK1','SK1','SK1','SK6','SK4','SK4'],
+        ['SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK5','SK5','FM','SL3','SL3','SL2','SL1','SL3','SL1','HK','HD','HD','HM','HD','HD','HM','LD','SK5','SK5','SK3','SK5','SK5','SK3','SK3','SK1','SK5','SK1','SK1','SK2','SK4','SK4','SK4','SK4'],
+        ['SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK3','SK5','FM','SL2','SL3','SL2','SL1','SL3','SL3','SL2','SL2','SL3','SL3','SL1','SL2','SL3','FM','SK5','SK5','SK3','SK5','SK5','SK3','SK3','SK5','SK1','SK4','SK4','SK4','SK4','SK4','SK4','SK4'],
+        ['SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','HM','SK1','SK5','SK1','SK1','SK5','SK3','SK5','SL2','SL2','SL2','SL4','SL2','SL2','SL2','SL2','SL2','SL1','SL2','SL1','SL3','SL3','FM','SK5','SK5','SK3','SK5','SK5','SK5','SK2','SK6','SK6','SK4','SK4','SK4','SK4','SK4','SK4','SK4'],
+        ['SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SL3','HM','SK5','SK1','SK1','HM','SK5','FM','SL2','SL2','FM','SK7','SE3','HD','SK1','LD','HK','SL1','SL3','SL1','SL2','SL1','SL3','FM','SK5','SK3','SK5','SK5','SK3','SK5','SK5','SK5','SK1','SK1','SK1','SK1','SK1','SK1','SK1'],
+        ['SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SL1','SL3','HM','SK1','SK1','HM','SK5','FM','SK3','SK5','SK3','SK7','SE3','HM','SK5','SE3','HK','SL2','SL2','SL2','SL4','SL3','SL3','FM','SK5','SK3','SK5','SK5','SK3','SK5','SK5','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1'],
+        ['SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SL1','SL3','HM','SK1','SK1','HM','HM','HM','HD','HM','HD','HD','HD','HM','HM','HM','SL2','FM','SK3','HM','LD','SK5','FM','FM','SK5','SK3','SK5','SK5','SK3','SK5','SK5','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1'],
+        ['SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SL1','SL1','SL3','HM','SK1','HM','FM','SL1','SL3','SL1','SL3','SL2','SL4','HK','RD','HM','HD','HM','HM','HD','HD','SL4','SL2','FM','SK5','SK3','SK5','SK5','SK3','SK5','SK5','SK5','SK1','SK1','SK1','SK1','SK1','SK1','SK1'],
+        ['SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SL1','SL1','SL1','SL3','HM','HM','SK3','SL3','SL3','SL3','SL3','SL2','SL3','HK','HK','SL3','SL3','SL1','SL3','SL3','SL2','HK','SL4','SL3','FM','SK3','SK5','SK3','SK3','SK5','SK5','SK5','SK1','SK1','SK1','SK1','SK1','SK1','SK1'],
+        ['SK1','SK1','SK1','LD','SK1','LD','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SL1','SL1','SL1','HM','HM','SK5','SK5','SL2','SL1','SL3','SL2','SL2','RD','RD','HM','SL1','SL1','SL3','SL1','SL3','HK','SL4','SL1','SL3','SK3','SK5','SK5','SK3','SK5','SK5','SK5','SK1','SK1','SK1','SK1','SK1','SK1','SK1'],
+        ['SK1','SK1','SK1','SK1','LD','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SL1','SL1','SL1','SL3','HM','SK1','SK5','SL2','SL1','SL3','SL3','SL1','HK','RD','HK','SL1','SL1','SL3','HK','RD','SL4','HK','SL2','SL1','SL2','FM','SK5','SK5','SK5','SK5','SK5','SK1','SK1','SK1','SK1','SK1','SK1','SK1'],
+        ['SK6','SK6','SK6','SK6','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SL1','SL1','SL1','SL1','SL3','HM','SK5','FM','SL3','SL4','RD','SL1','HK','RD','HK','RD','SL1','SL3','SL1','RD','SL2','HK','SL2','SL1','SL3','SL3','FM','SK3','SK5','SK1','SK5','SK1','SK1','SK1','SK6','SK6','SK1','SK1'],
+        ['SK6','SK6','SK6','SK4','SK6','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SK1','SL1','SL1','SL1','SL1','SL1','HM','SK5','FM','SL3','SL2','RD','RD','RD','RD','RD','RD','SL1','RD','RD','RD','RD','RD','HK','SL2','SL3','SL1','SL2','FM','SK1','SK5','SK5','SK1','SK6','SK6','SK6','SK6','SK2','SK2'],
+        ['SK4','SK6','SK6','SK4','SK4','SK6','SK6','SK6','SK1','SK1','SK5','SK1','SK1','SL1','SL1','SL1','SL1','SL1','SL2','HM','FM','SL3','SL4','RD','SL1','HK','RD','HK','HK','SL3','SL3','SL3','RD','SL4','SL1','HK','SL2','SL3','SL3','SL1','SL2','FM','SK1','SK5','SK6','SK6','SK6','SK6','SK6','SK6','SK6'],
+        ['SK6','SK6','SK6','SK6','SK6','SK6','SK6','SK6','SK6','SK6','SK6','SK4','SK6','SL1','SL1','SL1','SL1','SL1','SL2','SL2','HM','SL3','SL3','SL2','SL1','HK','RD','HK','HK','SL3','SL3','RD','RD','SL4','SL1','HK','SL2','SL3','SL2','FM','SK1','SK2','HM','SK6','SK6','SK6','SK6','SK6','SK6','SK6','SK6'],
+        ['SK6','SK6','SK6','SK6','SK6','SK6','SK6','SK6','SK6','SK6','SK6','SK6','SK6','SL1','SL1','SL1','SL1','SL1','SL1','SL2','HK','SL3','SL2','SL2','SL4','RD','RD','RD','HK','SL3','SL2','SL1','SL2','SL1','SL1','HK','SL2','SL2','FM','SK2','HM','HD','SK6','SK2','SK6','SK6','SK6','SK6','SK6','SK6','SK6'],
+        ['SK6','SK6','SK6','SK6','SK6','SK6','SK6','SK6','SK6','SK6','SK6','SK6','SL3','SL3','SL3','SL1','SL1','SL1','SL1','HK','SL2','SL3','SL2','SL2','SL3','SL2','SL4','HK','HK','SL3','SL2','SL2','SL2','SL3','SL2','HK','FM','SK5','SK2','HD','HM','FM','SK6','SK2','SK6','SK6','SK6','SK6','SK6','SK6','SK6'],
+        ['SK6','SK6','SK6','SK6','SK6','SK6','SK6','SK6','SK6','SK6','SK6','HD','SK6','SL3','SL3','SL3','SL3','SL3','SL2','HK','SL2','SL2','SL2','SL4','SL3','SL2','HK','HK','SL2','SL2','FM','HM','LD','SK2','SL4','FM','SK2','SK5','HD','HD','SK2','SK2','SK2','SK6','SK6','SK6','SK6','SK6','SK6','LD','LD'],
+        ['SK6','SK6','SK6','SK6','SK6','SK6','SK6','SK6','SK6','SK6','SK6','SK6','SK6','SK2','SK2','SK6','SK2','HD','SK2','SL3','SL2','SL2','SL2','SK3','SE3','HD','SL4','SL4','SL2','SL2','FM','HM','LD','SL4','SL4','SK1','HD','HD','SK2','SK2','SK2','SK2','SK2','SK6','SK6','SK6','SK6','SK6','SK6','LD','LD'],
+        ['SK6','SK6','SK6','SK6','SK6','SK6','SK6','SK6','SK6','SK6','SK6','SK6','HD','HD','HD','HD','HD','HD','HD','SL2','SL2','SK2','SK1','SK3','SK7','HD','SK6','FM','SK2','SK2','SK5','HM','HD','HD','HD','HD','HD','FM','SK2','SK2','SK2','SK2','SK2','SK2','SK6','SK6','LD','LD','LD','LD','LD'],
+        ['LD','LD','LD','SK6','SK6','SK6','SK6','SK6','SK6','SK6','SK6','SK6','HD','HM','HM','HM','HM','HM','HD','HD','HD','SK2','SK1','SK3','SK7','HM','SK2','SK5','LD','HD','HD','HD','HM','HM','HM','HD','HD','SK2','SK1','SK6','SK1','SK2','SK6','SK2','LD','LD','LD','LD','LD','LD','LD'],
+        ['LD','LD','LD','LD','LD','LD','LD','SK6','SK6','SK6','SK6','SK6','HD','HM','HD','HM','HD','HD','HM','HD','HD','HD','HD','SK3','SK7','HM','SK2','LD','HD','HD','HD','HM','HD','HD','HD','HD','FM','SK2','SK1','SK7','LD','LD','LD','LD','LD','LD','LD','LD','LD','LD','LD'],
+        ['LD','LD','LD','LD','LD','LD','LD','LD','LD','LD','SK6','SK6','SK6','HD','HM','HM','HM','HM','HM','HM','HD','HD','HD','HD','HD','HD','HD','HD','HM','HM','HM','HM','HM','HM','HD','HD','FM','SK1','LD','LD','LD','LD','LD','LD','LD','LD','LD','LD','LD','LD','LD'],
+        ['SE3','SE3','SE3','SE3','SE3','SE3','SE3','SE3','SE3','SE3','SE3','SE3','SE3','SE2','HD','HD','HD','HD','HD','HD','HM','HM','HM','HM','HM','HM','HM','HD','HD','HD','HD','HD','HD','HD','HD','HD','LD','SE2','SE2','SE2','SE2','SE2','SE3','SE2','SE3','SE3','SE3','SE3','SE3','SE3','SE3'],
+        ['SE3','SE3','SE3','SE3','SE3','SE3','SE3','SE3','SE3','SE3','SE3','SE3','SE3','SE3','HD','HM','HM','HM','HM','HD','HD','HD','HD','HD','HD','HD','HD','HD','HD','HM','HM','HM','HM','HD','HD','LD','SE2','SE2','SE2','SE2','SE2','SE2','SE2','SE2','SE3','SE3','SE3','SE3','SE3','SE3','SE3'],
+        ['SE3','SE3','SE3','SE3','SE3','SE4','SE3','SE3','SE3','SE3','SE3','SE3','SE3','SE3','HD','HD','HD','HD','HM','HM','HM','HM','HM','HM','HM','HM','HM','HM','HM','HD','HD','HD','HD','HD','HD','LD','SE3','SE2','SE2','SE2','SE2','SE2','SE3','SE3','SE3','SE3','SE3','SE3','SE3','SE3','SE3'],
+        ['SE4','SE4','SE4','SK7','SK7','SK7','SE4','SE4','SE4','SE4','SE4','SE4','SE4','SE4','SE2','HD','HD','HD','HD','HD','HD','HD','HD','HD','HD','HD','HD','HD','HD','HD','LD','SK2','SK5','HD','SE5','SE4','SE4','SE4','SE4','SE3','SE3','SE3','SE3','SE4','SE4','SK7','SK7','SK7','SE4','SE4','SE4'],
+        ['SE2','SE2','SE4','SE4','SE4','SE4','SE4','SE4','SK2','SK2','SK2','SK2','SK2','SK2','SK2','SE2','HD','HD','HD','HD','HD','HD','HD','HD','HD','HD','HD','HD','HD','HM','SE4','SE4','SE1','SK7','SK1','SE4','SE4','SE4','SE4','SE4','SE4','SE4','SE4','SE2','SE4','SE4','SE4','SE4','SE2','SE2','SE2'],
+        ['SE2','SE2','SE2','SE2','SE2','SE2','SE2','SE4','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE4','SE4','SE4','SE4','SE4','SE4','SE1','HD','HD','HM','SK1','SE2','SE1','SE4','SE1','SE4','SE4','SK3','SE4','SE1','SE2','SE2','SE2','SE4','SE4','SE4','SE2','SE2','SE3','SE3','SE3','SE3','SE3'],
+        ['SE4','SE4','SE4','SE4','SE4','SE4','SE4','SE2','SE4','SE4','SE4','SE1','SE4','SE4','SE2','SE2','SE2','SE3','SE4','SE4','SE1','SE4','SE1','SE1','SE4','SK5','SK2','SE2','SE1','SE4','SE1','SE4','SE1','SE4','SE4','SE4','SE2','SE2','SE4','SE4','SE4','SE1','SE4','SE4','SE1','SE1','SE1','SE1','SE1','SE4','SE4'],
+        ['SE4','SE4','SE4','SE4','SE4','SE4','SE4','SE4','SE2','SE2','SE3','SE2','SE3','SE3','SE4','SE4','SE4','SE4','SE1','SE4','SE4','SE4','SE4','SE1','SE4','SE1','SE4','SE4','SE1','SE4','SE4','SE4','SE1','SE4','SE4','SE4','SE4','SE1','SE4','SE4','SE4','SE4','SE4','SE4','SE4','SE4','SE1','SE4','SE4','SE4','SE4'],
+        ['SE4','SE4','SE4','SE4','SE4','SE4','SE4','SE4','SE4','SE4','SE4','SE4','SE4','SE4','SE4','SE4','SE4','SE4','SE4','SE1','SE4','SK1','SK3','SE1','SE4','SE1','SE4','SE4','SE4','SE4','SE1','SE4','SE1','SE4','SE4','SE4','SE4','SE4','SE4','SE4','SE4','SE4','SE4','SE4','SE4','SE4','SE4','SE4','SE4','SE4','SE4'],
+        ['SE4','SE4','SE4','SE4','SE4','SE4','SE4','SE4','SE4','SE4','SE4','SE4','SE4','SE4','SE1','SE5','SE1','SE5','SE5','SE1','SK1','SE5','SE1','SK5','SE1','SE5','SE4','SE4','SE4','SE1','SE1','SE1','SE1','SE4','SE4','SE4','SE4','SE1','SE4','SE4','SE4','SE1','SE5','SE5','SE4','SE4','SE4','SE4','SE4','SE1','SE1'],
+        ['SE1','SE1','SE1','SE1','SE1','SE1','SE1','SE1','SE4','SE4','SE4','SE4','SE1','SE1','SE1','SE1','SE1','SE1','SE1','SK1','SE5','SE5','SE1','SE1','SK2','SE2','SE5','SE5','SE5','SE5','SE5','SE3','SE1','SE1','SE1','SE4','SE4','SE1','SE1','SE5','SE5','SE5','SE5','SE5','SE1','SE4','SE4','SE4','SE4','SE5','SE5'],
+        ['SE1','SE1','SE1','SE1','SE1','SE1','SE5','SE5','SE1','SE1','SE1','SE5','SE4','SE1','SE1','SE5','SE1','SK6','SK2','SE5','SE1','SE1','SE1','SE5','SE1','SE1','SK2','SK5','SK1','SK2','SK5','SE4','SE1','SE1','SE1','SE1','SE4','SE5','SE1','SE1','SE1','SE1','SE1','SE1','SE5','SE1','SE5','SE5','SE5','SE5','SE5'],
+        ['SE5','SE5','SE1','SE1','SE1','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SK2','SK1','SK6','SK2','SE1','SE5','SE1','SE1','SE1','SE5','SE5','SE1','SE1','SE1','SE1','SE1','SE1','SE5','SE1','SE5','SE1','SE5','SE5','SE5','SE5','SE5','SE1','SE1','SE1','SE4','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5'],
+        ['SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE1','SE1','SE1','SE1','SE1','SE1','SE5','SE1','SE1','SE1','SE5','SE1','SE5','SE1','SE5','SE5','SE1','SE1','SE1','SE5','SE1','SE1','SE1','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5'],
+        ['SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE1','SE5','SE5','SE5','SE5','SE5','SE1','SE5','SE5','SE1','SE5','SE1','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5'],
+        ['SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE1','SE5','SE1','SE5','SE5','SE1','SE5','SE1','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5','SE5'],
+      ]
+    },
+  ];
+
+  let currentLevel = 0;
+  let T, CI, CK, GC;
+
+  function loadLevel(idx) {
+    currentLevel = idx;
+    const lv = LEVELS[idx];
+    T  = lv.grid;
+    CI = lv.colors;
+    CK = Object.keys(CI);
+    NR = T.length;
+    NC = T[0].length;
+    gridEl.style.gridTemplateColumns = `repeat(${NC}, var(--cell))`;
+    if (typeof fitGrid === 'function') fitGrid();
+
+    // Build GC (grid cell class map) and inject CSS vars for colors
+    GC = {};
+    for (const key of CK) {
+      GC[key] = 'g' + key;
+    }
+    injectColorCSS(CI);
+  }
+
+  function injectColorCSS(colors) {
+    let existing = document.getElementById('dynamic-colors');
+    if (!existing) {
+      existing = document.createElement('style');
+      existing.id = 'dynamic-colors';
+      document.head.appendChild(existing);
+    }
+    let css = '';
+    for (const [key, def] of Object.entries(colors)) {
+      const hex = def.hex;
+      css += `
+        .g${key}   { background: ${hex}22; }
+        .b${key}   { background: ${hex}; }
+        .c${key}   { background: linear-gradient(145deg, ${lighten(hex)}, ${hex} 50%, ${darken(hex)}); box-shadow: inset 0 1px 0 rgba(255,255,255,.25), inset 0 -1px 0 rgba(0,0,0,.2), 0 1px 3px rgba(0,0,0,.5); }
+        :root      { --col-${key}: ${hex}; }
+      `;
+    }
+    existing.textContent = css;
+  }
+
+  function lighten(hex) {
+    const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+    return `rgb(${Math.min(255,r+40)},${Math.min(255,g+40)},${Math.min(255,b+40)})`;
+  }
+  function darken(hex) {
+    const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+    return `rgb(${Math.max(0,r-30)},${Math.max(0,g-30)},${Math.max(0,b-30)})`;
+  }
+  // ── END LEVELS ───────────────────────────────────────────────────────────
+
+  // Accessibility from 4 edges
+  function canFromBot(r,c){for(let i=NR-1;i>r;i--)if(placed[i][c])return false;return true;}
+  function canFromTop(r,c){for(let i=0;i<r;i++)if(placed[i][c])return false;return true;}
+  function canFromLeft(r,c){for(let i=0;i<c;i++)if(placed[r][i])return false;return true;}
+  function canFromRight(r,c){for(let i=NC-1;i>c;i--)if(placed[r][i])return false;return true;}
+  function isOK(r,c){return canFromBot(r,c)||canFromTop(r,c)||canFromLeft(r,c)||canFromRight(r,c);}
+  function findBlocked(){
+    for(let r=0;r<NR;r++)for(let c=0;c<NC;c++)
+      if(!placed[r][c]&&!isOK(r,c))return{r,c};
+    return null;
+  }
+
+  function buildFirePlan(color){
+    const plan=[];
+    for(let r=0;r<NR;r++)for(let c=0;c<NC;c++)
+      if(T[r][c]===color&&!placed[r][c])plan.push({r,c});
+    return plan;
+  }
+
+  function buildCannons(){
+    const tot = {};
+    for (const k of CK) tot[k] = 0;
+    for(let r=0;r<NR;r++)for(let c=0;c<NC;c++) if(tot[T[r][c]]!==undefined) tot[T[r][c]]++;
+    const arr=[];let id=0;
+    for(const k of CK){
+      const t=tot[k];if(t<=0)continue;
+      const f=Math.floor(t/MAX_SHOTS),d=t%MAX_SHOTS;
+      for(let i=0;i<f;i++)arr.push({id:id++,color:k,max:MAX_SHOTS,rem:MAX_SHOTS,inZone:false,done:false,firing:false});
+      if(d>0)arr.push({id:id++,color:k,max:d,rem:d,inZone:false,done:false,firing:false});
+    }
+    const piles={};
+    for(const cn of arr){if(!piles[cn.color])piles[cn.color]=[];piles[cn.color].push(cn);}
+    for(const k of CK)if(piles[k])shuf(piles[k]);
+    const res=[];let s=arr.length+10;
+    while(res.length<arr.length&&s-->0)for(const k of CK)if(piles[k]&&piles[k].length)res.push(piles[k].shift());
+    return res;
+  }
+  function shuf(a){for(let i=a.length-1;i>0;i--){const j=0|Math.random()*(i+1);[a[i],a[j]]=[a[j],a[i]];}}
+
+  // ── STATE ───────────────────────────────────────────────────────────────
+  // ── STATE ────────────────────────────────────────────────────────────────
+  let placed, shots, gameOver;
+  let currentRow = 0;       // ligne courante du pixel art
+  let mainLine   = [];      // 5 slots max — canons actifs (ligne principale)
+  let wall = [];            // mur de canons : grille à trous, hauteur fixe
+  let colStacks = [];       // une pile cachée PAR COLONNE : recharge par le bas
+  let lastTriples = [];     // triples du dernier tirage (pour l'arrangement facile)
+  let beltCannons = [];     // canons sur le tapis (max 5)
+
+  const MAX_BELT = 5;
+  const SLOTS    = 5;
+
+  const $ = id => document.getElementById(id);
+  const gridEl = $('grid'),
+        sS = $('sShots'), sP = $('sProg'),
+        wO = $('winOverlay'), wS = $('winShots'),
+        gOv = $('goOverlay'), gM = $('goMsg'),
+        rB = $('railBorder'), stEl = $('status');
+
+  // ── FIRE ZONE ─────────────────────────────────────────────────────────────
+  const FIRE_COOLDOWN = 10;
+  const fireZoneEl = $('fireZone');
+
+  const fireSlots = Array.from({length: MAX_BELT}, (_, i) => {
+    const el = document.createElement('div');
+    el.className = 'fire-slot';
+    el.dataset.slot = i;
+    fireZoneEl.appendChild(el);
+    const slot = { el, cannon: null, timer: null, firing: false };
+    return slot;
+  });
+
+  function getFreeSlot() {
+    return fireSlots.find((s, i) => i < tapisCap() && !s.cannon && !s.reserved);
+  }
+
+  function sendToFireZone(cn, slotOpt) {
+    if (gameOver) return;
+    const slot = slotOpt || getFreeSlot();
+    if (!slot) { setSt('Tapis plein !', 'warn'); return; }
+    cn.inZone = true;
+    slot.cannon = cn;
+    beltCannons.push(cn);
+    renderSlot(slot);
+    updateBeltCount();
+    renderCannonLines();
+
+    // Pas de tir individuel : seul un combo de 3 identiques déclenche le tir
+    checkFusion(cn.color);
+    checkDeadlock();
+  }
+
+  // Game Over si le tapis est plein, qu'aucun combo n'est possible
+  // et qu'aucun combo n'est en train de se vider
+  function checkDeadlock() {
+    if (gameOver) return;
+    const occ = fireSlots.filter(s => s.cannon);
+    if (occ.length < tapisCap()) return;
+    if (occ.some(s => s.firing)) return; // un combo se vide, de la place arrive
+    const counts = {};
+    for (const s of occ) counts[s.cannon.color] = (counts[s.cannon.color] || 0) + 1;
+    if (Object.values(counts).some(v => v >= 3)) return;
+    trigGameOver('Tapis plein — aucun combo possible !');
+  }
+
+  // Couleurs actuellement en état fusionné dans la zone de tir
+  const fusedColors = new Set();
+
+  function checkFusion(color) {
+    // Un combo = 3 canons EN ATTENTE de la même couleur.
+    // Un canon en train de tirer ne compte pas : sinon il "volerait" un canon
+    // au triple suivant et laisserait des orphelins impossibles à jouer en fin de partie.
+    const sameSlots = fireSlots.filter(s => s.cannon && !s.firing && s.cannon.color === color && !s.cannon.done);
+    if (sameSlots.length < 3) return;
+
+    const keepSlot = sameSlots[0];
+    const keepCannon = keepSlot.cannon;
+    const totalRem = sameSlots.reduce((sum, s) => sum + s.cannon.rem, 0);
+
+    for (const s of sameSlots.slice(1)) {
+      if (s.timer) { clearTimeout(s.timer); s.timer = null; }
+      const c = s.cannon;
+      c.inZone = false; c.done = true;
+      const idx = beltCannons.indexOf(c);
+      if (idx !== -1) beltCannons.splice(idx, 1);
+      firePlanMap.delete(c.id);
+      s.cannon = null;
+      s.el.className = 'fire-slot';
+      s.el.innerHTML = '';
+    }
+
+    keepCannon.rem = totalRem;
+    firePlanMap.set(keepCannon.id, makePlanAll(keepCannon));
+    keepSlot.el.classList.add('fusion');
+    setTimeout(() => keepSlot.el.classList.remove('fusion'), 400);
+    keepSlot.firing = true;
+    renderSlot(keepSlot);
+    updateBeltCount();
+    renderCannonLines();
+    setSt('Combo ' + CI[color].n + ' ! ' + totalRem + ' cases', 'ok');
+    scheduleFire(keepSlot);
+  }
+
+  function renderSlot(slot) {
+    const cn = slot.cannon;
+    if (!cn) {
+      slot.el.className = 'fire-slot';
+      slot.el.innerHTML = '';
+    } else {
+      slot.el.className = 'fire-slot occupied' + (slot.firing ? ' firing' : '');
+      slot.el.innerHTML = slot.firing
+        ? `<div class="fs-dot ${CI[cn.color].b}"></div><div class="fs-count">${cn.rem}</div>`
+        : `<div class="fs-dot ${CI[cn.color].b}"></div>`;
+    }
+  }
+
+  function scheduleFire(slot) {
+    if (slot.timer) clearTimeout(slot.timer);
+    slot.timer = setTimeout(() => doFire(slot), Math.max(FIRE_COOLDOWN, 16));
+  }
+
+  function doFire(slot) {
+    slot.timer = null;
+    const cn = slot.cannon;
+    if (!cn || gameOver) return;
+
+    const plan = firePlanMap.get(cn.id);
+    if (!plan) { removeFromFireZone(slot); return; }
+
+    // Cadence : sous 16 ms de cooldown, on groupe plusieurs tirs dans une
+    // même frame — un timer + une animation par pixel ferait ramer le jeu
+    const batch = FIRE_COOLDOWN >= 16 ? 1 : Math.max(1, Math.round(16 / Math.max(FIRE_COOLDOWN, 2)));
+
+    let last = null;
+    for (let i = 0; i < batch && !cn.done; i++) {
+      while (plan.length && placed[plan[0].r][plan[0].c]) plan.shift();
+      if (!plan.length) break;
+      const target = plan.shift();
+      cn.rem--;
+      shots++;
+      if (cn.rem <= 0) cn.done = true;
+      placed[target.r][target.c] = true;
+      placedCount++;
+      placeCell(target.r, target.c);
+      last = target;
+    }
+    while (plan.length && placed[plan[0].r][plan[0].c]) plan.shift();
+
+    if (last) {
+      const fsCount = slot.el.querySelector('.fs-count');
+      if (fsCount) fsCount.textContent = cn.rem;
+
+      // Une seule animation de vol par passe (vers la dernière case posée)
+      const cellEl = gridEl.children[last.r * NC + last.c];
+      if (slot.el && cellEl) {
+        const cr = slot.el.getBoundingClientRect();
+        const gr = cellEl.getBoundingClientRect();
+        const sx = cr.left + cr.width/2 - 4, sy = cr.top + cr.height/2 - 4;
+        const px = document.createElement('div');
+        px.className = 'fly-pixel';
+        px.style.cssText = `left:${sx}px;top:${sy}px;background:var(--col-${cn.color});--dx:${(gr.left+gr.width/2-4)-sx}px;--dy:${(gr.top+gr.height/2-4)-sy}px;`;
+        document.body.appendChild(px);
+        setTimeout(() => px.remove(), 300);
+      }
+
+      updStats();
+      playPop();
+    }
+
+    // Victoire ?
+    const {d, t} = prog();
+    if (d === t) {
+      setTimeout(() => {
+        launchFireworks(1200);
+        setTimeout(() => { wS.textContent = shots; wO.classList.add('show'); }, 1200);
+      }, 400);
+      return;
+    }
+
+    // Canon vide ou couleur terminée ?
+    if (cn.done || !plan.length) {
+      removeFromFireZone(slot);
+      return;
+    }
+
+    scheduleFire(slot);
+  }
+
+  function removeFromFireZone(slot) {
+    if (slot.timer) { clearTimeout(slot.timer); slot.timer = null; }
+    const cn = slot.cannon;
+    if (!cn) return;
+    // Si c'était le dernier canon fusionné de cette couleur, réinitialiser
+    const remainingSame = fireSlots.filter(s => s !== slot && s.cannon && s.cannon.color === cn.color);
+    if (remainingSame.length === 0) fusedColors.delete(cn.color);
+    cn.inZone = false; cn.done = true;
+    const idx = beltCannons.indexOf(cn);
+    if (idx !== -1) beltCannons.splice(idx, 1);
+    firePlanMap.delete(cn.id);
+    slot.cannon = null;
+    slot.firing = false;
+    renderSlot(slot);
+    updateBeltCount();
+    renderCannonLines();
+  }
+
+  function advanceRow() {
+    const next = firstNonWhiteRow(currentRow - 1);
+    if (next === -1) return;
+    currentRow = next;
+    setSt(fillDir === 'up' ? 'Le dessin monte du bas vers le haut !' : 'Le dessin descend du haut vers le bas !', 'ok');
+    // Les setInterval continuent — ils verront la nouvelle currentRow au prochain tick
+  }
+
+  // Watchdog : toutes les 300ms, si la ligne courante est déjà complète, avancer
+  // Couvre le cas où tous les canons en zone de tir ont une autre couleur
+  function startWatchdog() {
+    if (window._watchdog) clearInterval(window._watchdog);
+    window._watchdog = setInterval(() => {
+      if (gameOver) { clearInterval(window._watchdog); return; }
+      if (isRowComplete(currentRow)) {
+        advanceRow();
+      }
+    }, 300);
+  }
+
+
+  function stopAllFire() {
+    for (const s of fireSlots) {
+      if (s.timer) { clearTimeout(s.timer); s.timer = null; }
+      s.firing = false;
+    }
+  }
+
+  function updateBeltCount() {
+    const badge = document.getElementById('beltCount');
+    if (!badge) return;
+    const n = beltCannons.length;
+    badge.textContent = n + '/' + tapisCap();
+    badge.classList.toggle('danger', n >= 4);
+  }
+
+  // ── GAME OVER ─────────────────────────────────────────────────────────────
+
+  function trigGameOver(msg) {
+    gameOver = true;
+    gM.textContent = msg;
+    gOv.classList.add('show');
+    renderCannonLines();
+  }
+
+  // ── RENDER ────────────────────────────────────────────────────────────────
+
+  // Pixels non-blancs de la ligne r
+  function rowPixels(r) {
+    const out = [];
+    for (let c = 0; c < NC; c++)
+      if (CI[T[r][c]]) out.push({r, c, color: T[r][c]});
+    return out;
+  }
+
+  // Trouver la première ligne non-entièrement-blanche (en partant du bas)
+  function firstNonWhiteRow(startR) {
+    for (let r = startR; r >= 0; r--)
+      if (rowPixels(r).length > 0) return r;
+    return -1; // fin du dessin
+  }
+
+  // Vérifier si la ligne r est complètement placée (hors blancs)
+  function isRowComplete(r) {
+    return rowPixels(r).every(p => placed[p.r][p.c]);
+  }
+
+  // Construire un canon {id, color, rem}
+  let _nextId = 0;
+  function makeCannon(color, rem) {
+    return { id: _nextId++, color, rem, inZone: false, done: false };
+  }
+
+  // Construire tous les canons pour le pixel art (en ignorant blanc)
+  // Retourne tableau plat trié par couleur / 10 tirs max
+  // Construit la pile de canons pour la mécanique combo :
+  // - chaque couleur est découpée en canons à charges VARIABLES
+  // - le nombre de canons par couleur est un multiple de 3 (combos complets)
+  // - la somme des charges = le nombre exact de cases de la couleur
+  // - les triples sont ordonnés selon la profondeur du dessin (bas → haut)
+  //   et entrelacés deux par deux : toujours solvable avec 5 slots
+  function buildOrderedPile() {
+    const avg = LEVELS[currentLevel].maxShots || MAX_SHOTS;
+
+    // 1) Pixels par couleur + lignes de chaque pixel (triées bas → haut)
+    const totals = {}, rowsByColor = {};
+    for (const k of CK) { totals[k] = 0; rowsByColor[k] = []; }
+    const rowOrder = fillDir === 'up'
+      ? Array.from({length: NR}, (_, i) => NR - 1 - i)
+      : Array.from({length: NR}, (_, i) => i);
+    for (const r of rowOrder)
+      for (let c = 0; c < NC; c++) {
+        const col = T[r][c];
+        if (!CI[col]) continue; // case vide (fond transparent, pas une couleur du dessin)
+        totals[col]++; rowsByColor[col].push(r);
+      }
+
+    // 2) Découper chaque couleur en triples de canons
+    const triples = [];
+    for (const k of CK) {
+      const P = totals[k];
+      if (!P) continue;
+      // Charges rondes : uniquement 25 ou 50.
+      // On couvre P avec le minimum de canons (multiple de 3) ; le léger
+      // surplus est ignoré une fois toutes les cases de la couleur posées.
+      // En DIFFICILE, on n'utilise que des 25 : deux fois plus de canons,
+      // donc un mur toujours large mais avec plus de couches à traverser.
+      const unit = tierFor(stage) === 'difficile' ? 25 : 50;
+      const nTri = Math.max(1, Math.ceil(Math.ceil(P / unit) / 3));
+      const K = 3 * nTri;
+      const c50 = unit === 25 ? 0 : Math.max(0, Math.min(K, Math.ceil((P - 25 * K) / 25)));
+      const sizes = Array.from({length: K}, (_, i) => (i < c50 ? 50 : 25));
+      shuf(sizes);
+      // Profondeur de chaque triple = ligne du dernier pixel qu'il couvre
+      let covered = 0;
+      for (let i = 0; i < nTri; i++) {
+        const cs = [makeCannon(k, sizes[3*i]), makeCannon(k, sizes[3*i+1]), makeCannon(k, sizes[3*i+2])];
+        shuf(cs);
+        covered += sizes[3*i] + sizes[3*i+1] + sizes[3*i+2];
+        const depth = rowsByColor[k][Math.min(covered, P) - 1];
+        triples.push({ depth, cannons: cs });
+      }
+    }
+
+    // 3) Trier : les triples nécessaires en premier selon la direction
+    triples.sort((a, b) => fillDir === 'up' ? b.depth - a.depth : a.depth - b.depth);
+    lastTriples = triples.map(t => t.cannons.slice());
+
+    // 4) Mélange fenêtré + validation par solveur :
+    //    on brasse les canons de 3-4 triples voisins pour casser la linéarité,
+    //    puis on vérifie qu'une partie bien jouée reste gagnable. Sinon,
+    //    on remélange (en réduisant le désordre si besoin).
+    // L'ordre de base : triples entrelacés deux par deux.
+    // La difficulté ne vient plus de la file mais de l'ARRANGEMENT DU MUR.
+    const pile = [];
+    for (let i = 0; i < triples.length; i += 2) {
+      const A = triples[i].cannons.slice();
+      const B = triples[i + 1] ? triples[i + 1].cannons.slice() : [];
+      while (A.length || B.length) {
+        const pool = [];
+        if (A.length) pool.push(A);
+        if (B.length) pool.push(B);
+        pile.push(pool[0 | Math.random() * pool.length].shift());
+      }
+    }
+    return pile;
+  }
+
+  // Remplir les lignes principale et réserve depuis la pile cachée
+  // Montée en cascade : quand le slot i de la ligne principale se vide,
+  // le canon au même index i de la réserve monte automatiquement,
+  // et la réserve se remplit depuis la pile cachée.
+  // ── MUR DE CANONS (grille à positions fixes) ────────────────────────────
+  // Les canons ne bougent pas : prendre un canon laisse un TROU. Un canon est
+  // jouable s'il existe un chemin de cases vides (qui peut serpenter) entre
+  // lui et le HAUT du mur. Le canon parcourt ce chemin sous tes yeux.
+  // Le mur affiche toujours WALL_ROWS rangées : le reste attend en réserve
+  // et recharge une colonne dès qu'elle est entièrement vidée.
+  const WALL_ROWS = 3;
+  const WALL_COLS = 5;
+  function wallCols(count) {
+    return WALL_COLS; // base fixe : 5 colonnes, quel que soit le nombre de canons
+  }
+
+  // Grille rows×cols remplie ligne par ligne ; reliquat centré en bas
+  function dealGrid(pile, cols) {
+    const rows = Math.ceil(pile.length / cols);
+    const g = Array.from({length: rows}, () => Array(cols).fill(null));
+    const full = (pile.length / cols) | 0;
+    let i = 0;
+    for (let r = 0; r < full; r++)
+      for (let c = 0; c < cols; c++) g[r][c] = pile[i++];
+    const rem = pile.length - i;
+    const off = ((cols - rem) / 2) | 0;
+    for (let k = 0; k < rem; k++) g[rows - 1][off + k] = pile[i++];
+    return g;
+  }
+
+  // Cases vides atteignables depuis le haut (BFS) → ensemble des canons libres
+  function freeCells(g) {
+    const rows = g.length, cols = g[0].length;
+    const reach = Array.from({length: rows}, () => Array(cols).fill(false));
+    const q = [];
+    for (let c = 0; c < cols; c++)
+      if (!g[0][c]) { reach[0][c] = true; q.push([0, c]); }
+    while (q.length) {
+      const [r, c] = q.pop();
+      for (const [dr, dc] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+        const nr = r + dr, nc = c + dc;
+        if (nr < 0 || nr >= rows || nc < 0 || nc >= cols) continue;
+        if (g[nr][nc] || reach[nr][nc]) continue;
+        reach[nr][nc] = true;
+        q.push([nr, nc]);
+      }
+    }
+    const free = Array.from({length: rows}, () => Array(cols).fill(false));
+    for (let r = 0; r < rows; r++)
+      for (let c = 0; c < cols; c++) {
+        if (!g[r][c]) continue;
+        if (r === 0) { free[r][c] = true; continue; }
+        for (const [dr, dc] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+          const nr = r + dr, nc = c + dc;
+          if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && reach[nr][nc]) { free[r][c] = true; break; }
+        }
+      }
+    return free;
+  }
+
+  // Plus court chemin de sortie (cases vides, sortie par le haut) — pour l'animation
+  function findExitPath(g, sr, sc) {
+    const rows = g.length, cols = g[0].length;
+    if (sr === 0) return [[sr, sc], [-1, sc]];
+    const prev = Array.from({length: rows}, () => Array(cols).fill(null));
+    const q = [];
+    for (const [dr, dc] of [[-1,0],[1,0],[0,1],[0,-1]]) {
+      const nr = sr + dr, nc = sc + dc;
+      if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && !g[nr][nc] && !prev[nr][nc]) {
+        prev[nr][nc] = [sr, sc];
+        q.push([nr, nc]);
+      }
+    }
+    let qi = 0, exitCell = null;
+    while (qi < q.length) {
+      const [r, c] = q[qi++];
+      if (r === 0) { exitCell = [r, c]; break; }
+      for (const [dr, dc] of [[-1,0],[0,1],[0,-1],[1,0]]) {
+        const nr = r + dr, nc = c + dc;
+        if (nr < 0 || nr >= rows || nc < 0 || nc >= cols) continue;
+        if (g[nr][nc] || prev[nr][nc]) continue;
+        prev[nr][nc] = [r, c];
+        q.push([nr, nc]);
+      }
+    }
+    if (!exitCell) return null;
+    const path = [];
+    let cur = exitCell;
+    while (cur && !(cur[0] === sr && cur[1] === sc)) {
+      path.unshift(cur);
+      cur = prev[cur[0]][cur[1]];
+    }
+    path.unshift([sr, sc]);
+    path.push([-1, exitCell[1]]); // sortie au-dessus du mur
+    return path;
+  }
+
+  // Découpe un mur complet en (grille visible, réserve) comme en jeu
+  function splitWall(full) {
+    const cols = full[0].length;
+    const g = full.slice(0, WALL_ROWS).map(r => r.slice());
+    // Chaque colonne garde SA propre pile cachée (jamais mélangée avec une autre)
+    const res = Array.from({length: cols}, () => []);
+    for (let r = WALL_ROWS; r < full.length; r++)
+      for (let c = 0; c < cols; c++) if (full[r][c]) res[c].push(full[r][c]);
+    return { g, res };
+  }
+
+  // Applique la recharge des colonnes vides (même règle qu'en jeu)
+  function applyRefill(g, res) {
+    const cols = g[0].length;
+    for (let c = 0; c < cols; c++) {
+      if (!res[c] || !res[c].length) continue;
+      let empty = true;
+      for (let r = 0; r < g.length; r++) if (g[r][c]) { empty = false; break; }
+      if (!empty) continue;
+      // La colonne se remplit par le BAS avec ses propres canons
+      for (let r = g.length - 1; r >= 0 && res[c].length; r--) g[r][c] = res[c].shift();
+    }
+  }
+
+  // Joueur "instinct" : prend toujours le canon le plus utile visible.
+  function greedyWins(full) {
+    const { g, res } = splitWall(full);
+    const tapis = [];
+    let guard = 20000;
+    while (guard-- > 0) {
+      let empty = true;
+      for (const row of g) for (const x of row) if (x) { empty = false; break; }
+      if (empty && res.every(s => !s.length)) return tapis.length === 0;
+      const free = freeCells(g);
+      const tc = {};
+      for (const z of tapis) tc[z.color] = (tc[z.color] || 0) + 1;
+      let best = null, bs = -1;
+      for (let r = 0; r < g.length; r++)
+        for (let c = 0; c < g[0].length; c++)
+          if (free[r][c]) { const s = tc[g[r][c].color] || 0; if (s > bs) { bs = s; best = [r, c]; } }
+      if (!best) return false;
+      const cn = g[best[0]][best[1]];
+      g[best[0]][best[1]] = null;
+      applyRefill(g, res);
+      tapis.push(cn);
+      const same = tapis.filter(z => z.color === cn.color);
+      if (same.length >= 3) for (const z of same) tapis.splice(tapis.indexOf(z), 1);
+      if (tapis.length >= tapisCap()) return false;
+    }
+    return false;
+  }
+
+  // Recherche (réserve incluse) : existe-t-il une façon de gagner ?
+  function solvableWithReserve(full) {
+    const start = splitWall(full);
+    const CAP = tapisCap();
+    let nodes = 0;
+    const seen = new Set();
+
+    function rec(g, res, tapis) {
+      if (++nodes > 40000) return false;
+      let empty = true;
+      for (const row of g) for (const x of row) if (x) { empty = false; break; }
+      if (empty && res.every(s => !s.length)) return Object.values(tapis).every(v => !v);
+      let k = '';
+      for (const row of g) for (const x of row) k += x ? x.color : '.';
+      k += '|' + res.map(s => s.length).join('.') + '|';
+      for (const col in tapis) if (tapis[col]) k += col + tapis[col];
+      if (seen.has(k)) return false;
+      seen.add(k);
+      const free = freeCells(g);
+      const cand = [];
+      for (let r = 0; r < g.length; r++)
+        for (let c = 0; c < g[0].length; c++) if (free[r][c]) cand.push([r, c]);
+      cand.sort((a, b) => (tapis[g[b[0]][b[1]].color] || 0) - (tapis[g[a[0]][a[1]].color] || 0));
+      let n = 0;
+      for (const [r, c] of cand) {
+        if (++n > 6) break; // largeur limitée : garde la génération rapide
+        const cn = g[r][c];
+        const cur = tapis[cn.color] || 0;
+        const g2 = g.map(row => row.slice());
+        const res2 = res.map(s => s.slice());
+        g2[r][c] = null;
+        applyRefill(g2, res2);
+        const t2 = Object.assign({}, tapis);
+        if (cur === 2) t2[cn.color] = 0; else t2[cn.color] = cur + 1;
+        let size = 0;
+        for (const col in t2) size += t2[col];
+        if (size >= CAP) continue;
+        if (rec(g2, res2, t2)) return true;
+      }
+      return false;
+    }
+    return rec(start.g, start.res, {});
+  }
+
+  // Vrai solveur (DFS + mémo) sur la grille à trous
+  function wallSolvable(g0) {
+    const rows = g0.length, cols = g0[0].length;
+    const g = g0.map(r => r.slice());
+    const tapis = {};
+    const CAP = tapisCap();
+    let tapisN = 0, nodes = 0;
+    const failed = new Set();
+
+    function key() {
+      let k = '';
+      for (let r = 0; r < rows; r++)
+        for (let c = 0; c < cols; c++) k += g[r][c] ? '1' : '0';
+      k += '|';
+      for (const col in tapis) if (tapis[col]) k += col + tapis[col];
+      return k;
+    }
+    function dfs() {
+      if (++nodes > 200000) return false;
+      let empty = true;
+      outer: for (let r = 0; r < rows; r++)
+        for (let c = 0; c < cols; c++)
+          if (g[r][c]) { empty = false; break outer; }
+      if (empty) return tapisN === 0;
+      const k = key();
+      if (failed.has(k)) return false;
+      const free = freeCells(g);
+      const cand = [];
+      for (let r = 0; r < rows; r++)
+        for (let c = 0; c < cols; c++)
+          if (free[r][c]) cand.push([r, c]);
+      cand.sort((a, b) => (tapis[g[b[0]][b[1]].color] || 0) - (tapis[g[a[0]][a[1]].color] || 0));
+      for (const [r, c] of cand) {
+        const cn = g[r][c];
+        const col = cn.color;
+        const cur = tapis[col] || 0;
+        g[r][c] = null;
+        if (cur === 2) { tapis[col] = 0; tapisN -= 2; }
+        else { tapis[col] = cur + 1; tapisN += 1; }
+        const ok = tapisN < CAP && dfs();
+        if (cur === 2) { tapis[col] = 2; tapisN += 2; }
+        else { tapis[col] = cur; tapisN -= 1; }
+        g[r][c] = cn;
+        if (ok) return true;
+      }
+      failed.add(k);
+      return false;
+    }
+    return dfs();
+  }
+
+  // Mélange par fenêtres glissantes (préserve grossièrement les couches)
+  function windowShuffle(pile, win) {
+    const p = pile.slice();
+    const off = 0 | Math.random() * win;
+    for (let i = -off; i < p.length; i += win) {
+      const a = Math.max(0, i), b = Math.min(p.length, i + win);
+      const seg = p.slice(a, b);
+      shuf(seg);
+      for (let j = 0; j < seg.length; j++) p[a + j] = seg[j];
+    }
+    return p;
+  }
+
+  // Arrange le mur selon le palier de difficulté
+  function buildWall(base) {
+    const cols = wallCols(base.length);
+    const tier = tierFor(stage);
+
+    // FACILE : léger mélange (fenêtre 6) validé gagnable —
+    // les triples restent proches de la surface sans être alignés bêtement
+    if (tier === 'facile') {
+      for (let attempt = 0; attempt < 60; attempt++) {
+        const g = dealGrid(windowShuffle(base, 6), cols);
+        if (greedyWins(g)) return g;
+      }
+      for (let attempt = 0; attempt < 30; attempt++) {
+        const g = dealGrid(windowShuffle(base, 3), cols);
+        if (greedyWins(g)) return g;
+      }
+      return dealGrid(base, cols);
+    }
+
+    // DIFFICILE : mur aussi large que les autres, mais mélange TOTAL et
+    // sans filet — les couleurs sont éparpillées, certains murs sont perdus
+    // d'avance, comme au solitaire
+    if (tier === 'difficile') {
+      // Avec seulement 3 rangees visibles, un melange total rendait certains
+      // murs impossibles : on melange a fond MAIS on valide qu'il reste gagnable
+      for (let attempt = 0; attempt < 60; attempt++) {
+        const pile = base.slice();
+        shuf(pile);
+        const g = dealGrid(pile, cols);
+        if (solvableWithReserve(g)) return g;
+      }
+      for (let attempt = 0; attempt < 30; attempt++) {
+        const g = dealGrid(windowShuffle(base, 18), cols);
+        if (solvableWithReserve(g)) return g;
+      }
+      return dealGrid(windowShuffle(base, 6), cols); // repli sur
+    }
+
+    // MOYEN : mur aussi large, gros mélange, mais TOUJOURS validé gagnable
+    // par le solveur : il faut planifier, jamais deviner
+    for (let attempt = 0; attempt < 25; attempt++) {
+      const g = dealGrid(windowShuffle(base, 18), cols);
+      if (solvableWithReserve(g)) return g;
+    }
+    for (let attempt = 0; attempt < 20; attempt++) {
+      const g = dealGrid(windowShuffle(base, 6), cols);
+      if (greedyWins(g)) return g;
+    }
+    return dealGrid(base, cols); // repli sûr
+  }
+
+  // Une colonne entièrement vide se recharge avec SA propre pile, par le bas
+  function refillEmptyColumns() {
+    if (!wall.length) return [];
+    const rows = wall.length, cols = wall[0].length;
+    const filled = [];
+    for (let c = 0; c < cols; c++) {
+      const stack = colStacks[c];
+      if (!stack || !stack.length) continue;
+      let empty = true;
+      for (let r = 0; r < rows; r++) if (wall[r][c]) { empty = false; break; }
+      if (!empty) continue;
+      for (let r = rows - 1; r >= 0 && stack.length; r--) {
+        wall[r][c] = stack.shift();
+        filled.push([r, c]);
+      }
+    }
+    return filled;
+  }
+
+  function takeFromWall(r, c) {
+    if (gameOver) return;
+    const cn = wall[r] && wall[r][c];
+    if (!cn) return;
+    const path = findExitPath(wall, r, c);
+    if (!path) return;
+    const slot = getFreeSlot();
+    if (!slot) {
+      setSt('Tapis plein — attends la fin du combo en cours', 'warn');
+      return;
+    }
+
+    // Verrouille la taille visuelle pendant tout le déplacement du canon.
+    window._cannonMoving = true;
+
+    slot.reserved = true;          // réservé pour le canon en vol
+    wall[r][c] = null;             // la case devient un trou immédiatement
+    const refilled = refillEmptyColumns(); // la colonne vidée remonte ses canons
+    renderCannonLines();           // d'abord re-rendre (l'animation mesure la grille à jour)
+    if (refilled.length) animateRise(refilled);
+    animateExit(cn, path, slot, () => {
+      slot.reserved = false;
+      sendToFireZone(cn, slot);
+
+      // Le DOM est maintenant stable : une seule mise à jour éventuelle,
+      // sans flash pendant le trajet.
+      window._cannonMoving = false;
+    });
+  }
+
+  // Les canons rechargés remontent depuis le bas de leur colonne, en cascade
+  function animateRise(cells) {
+    const grid = $('cannonsBox').querySelector('.wall-grid');
+    if (!grid) return;
+    // Du bas vers le haut : le premier arrivé est le plus bas
+    const sorted = cells.slice().sort((a, b) => b[0] - a[0]);
+    sorted.forEach(([r, c], i) => {
+      const cell = grid.querySelector(`[data-r="${r}"][data-c="${c}"]`);
+      const el = cell && cell.firstChild;
+      if (!el) return;
+      el.style.animationDelay = (i * 55) + 'ms';
+      el.classList.add('rising');
+    });
+  }
+
+  // Fait voyager le canon case par case le long de son chemin, puis au tapis
+  function animateExit(cn, path, slot, done) {
+    // Requête en direct : la grille peut être re-rendue pendant le vol
+    const cellAt = (r, c) => {
+      const g = $('cannonsBox').querySelector('.wall-grid');
+      return g && g.querySelector(`[data-r="${r}"][data-c="${c}"]`);
+    };
+    const first = cellAt(path[0][0], path[0][1]);
+    if (!first) { done(); return; }
+    const fr = first.getBoundingClientRect();
+    const fly = document.createElement('div');
+    fly.className = 'cannon wall-cn wall-fly';
+    fly.innerHTML = `<div class="cannon-barrel ${CI[cn.color].b}"></div>`;
+    fly.style.cssText = `position:fixed;z-index:60;left:${fr.left}px;top:${fr.top}px;width:${fr.width}px;height:${fr.height}px;margin:0;transition:left 70ms linear, top 70ms linear;`;
+    document.body.appendChild(fly);
+
+    let step = 1;
+    function next() {
+      if (step < path.length) {
+        const [r, c] = path[step];
+        let x, y;
+        if (r < 0) { // sortie au-dessus du mur
+          const ref = cellAt(0, c);
+          if (!ref) { fly.remove(); done(); return; }
+          const rr = ref.getBoundingClientRect();
+          x = rr.left; y = rr.top - rr.height - 4;
+        } else {
+          const el = cellAt(r, c);
+          if (!el) { fly.remove(); done(); return; }
+          const rr = el.getBoundingClientRect();
+          x = rr.left; y = rr.top;
+        }
+        fly.style.left = x + 'px';
+        fly.style.top  = y + 'px';
+        step++;
+        setTimeout(next, 72);
+      } else {
+        const sr = slot.el.getBoundingClientRect();
+        fly.style.transition = 'left 180ms ease-in, top 180ms ease-in, transform 180ms ease-in';
+        fly.style.left = (sr.left + sr.width / 2 - fly.offsetWidth / 2) + 'px';
+        fly.style.top  = (sr.top + sr.height / 2 - fly.offsetHeight / 2) + 'px';
+        fly.style.transform = 'scale(.8)';
+        setTimeout(() => { fly.remove(); done(); }, 190);
+      }
+    }
+    setTimeout(next, 20);
+  }
+
+  // Plan de tir d'un canon pour les lignes restantes
+  function makePlanAll(cn) {
+    const plan = [];
+    if (fillDir === 'up') {
+      for (let r = NR - 1; r >= 0; r--)
+        for (let c = 0; c < NC; c++)
+          if (T[r][c] === cn.color && !placed[r][c]) plan.push({r, c});
+    } else {
+      for (let r = 0; r < NR; r++)
+        for (let c = 0; c < NC; c++)
+          if (T[r][c] === cn.color && !placed[r][c]) plan.push({r, c});
+    }
+    return plan;
+  }
+
+  // Calcul dynamique de la taille des cases du mur pour qu'il s'adapte à l'écran
+  function setWallCellSize(cols) {
+    const box = $('cannonsBox');
+    const maxW = box ? box.clientWidth - 20 : 340;
+    const gap = 4;
+    const size = Math.floor((maxW - (cols - 1) * gap) / cols);
+    const clamped = Math.max(32, Math.min(64, size));
+    document.documentElement.style.setProperty('--wc', clamped + 'px');
+    setFireSlotSize();
+  }
+
+  // Taille des slots de la zone de tir : basée sur --wc pour rester visuellement
+  // cohérente avec le mur de canons, mais toujours plafonnée pour que les 5
+  // slots tiennent dans la largeur réellement disponible (jamais de débordement).
+  function setFireSlotSize() {
+    const zone = fireZoneEl;
+    if (!zone) return;
+    const wc = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--wc')) || 32;
+    const style = getComputedStyle(zone);
+    const padX = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
+    const gap = parseFloat(style.gap) || 5;
+    const maxW = zone.clientWidth - padX;
+    // largeur d'un slot = fs + 10 (voir CSS .fire-slot)
+    const maxFs = Math.floor((maxW - gap * (MAX_BELT - 1)) / MAX_BELT) - 10;
+    const clamped = Math.max(20, Math.min(wc, maxFs));
+    document.documentElement.style.setProperty('--fs', clamped + 'px');
+  }
+
+  function renderCannonLines() {
+    const box = $('cannonsBox');
+    box.innerHTML = '';
+    if (!wall.length) return;
+    const rows = wall.length, cols = wall[0].length;
+    if (!window._cannonMoving) setWallCellSize(cols);
+
+    const free = freeCells(wall);
+    const grid = document.createElement('div');
+    grid.className = 'wall-grid';
+    grid.style.gridTemplateColumns = `repeat(${cols}, var(--wc, 40px))`;
+
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const cn = wall[r][c];
+        const cell = document.createElement('div');
+        cell.className = 'wall-cell' + (!cn ? ' hole' : '');
+        cell.dataset.r = r; cell.dataset.c = c;
+
+        if (cn) {
+          const isFree = free[r][c];
+          const el = document.createElement('div');
+          el.className = 'cannon wall-cn ' + (isFree ? 'accessible' : 'buried');
+          el.innerHTML = `<div class="cannon-barrel ${CI[cn.color].b}"></div>`;
+          if (isFree && !gameOver) {
+            el.onclick = () => takeFromWall(r, c);
+          }
+          cell.appendChild(el);
+        }
+        grid.appendChild(cell);
+      }
+    }
+    box.appendChild(grid);
+  }
+
+  // Sens de remplissage du dessin : 'up' = bas vers le haut (par défaut)
+  let fillDir = 'up';
+
+  // ── PROGRESSION DE LA CAMPAGNE ──────────────────────────────────────────
+  // La campagne génère des niveaux à l'infini.
+  //   - stage 1, 2, 3...
+  //   - le pixel art cycle parmi LEVELS[ (stage-1) % LEVELS.length ]
+  //   - la difficulté est determinée par le stage :
+  //       stage 1, 2     → Facile
+  //       stage 3, 4, 5  → Moyen
+  //       stage >= 6     → Difficile (boucle à l'infini)
+  let stage = 1;
+  let gameMode = 'adventure'; // 'adventure' | 'free'
+  let freeLevelIdx = 0;
+
+  function tierFor(stg) {
+    if (stg <= 2) return 'facile';
+    if (stg <= 5) return 'moyen';
+    return 'difficile';
+  }
+
+  function tapisCap() {
+    return 5; // Tapis fixe de 5 slots pour tous les niveaux
+  }
+
+  function updateStageUI() {
+    const stgLabel = $('stageLabel');
+    const badge = $('tierBadge');
+    if (gameMode === 'free') {
+      const lv = LEVELS[freeLevelIdx];
+      if (stgLabel) stgLabel.textContent = lv ? lv.name : '';
+      if (badge) { badge.textContent = 'LIBRE'; badge.className = 'tier-badge'; }
+    } else {
+      if (stgLabel) stgLabel.textContent = 'Niveau ' + stage;
+      if (badge) {
+        const t = tierFor(stage);
+        badge.textContent = t.toUpperCase();
+        badge.className = 'tier-badge ' + t;
+      }
+    }
+  }
+
+  // ── PEEK / REVEAL MODE ───────────────────────────────────────────────────
+  let peekActive = false;
+
+  function setPeek(active) {
+    peekActive = active;
+    const btn = $('peekBtn');
+    if (btn) {
+      btn.classList.toggle('revealed', peekActive);
+      btn.textContent = peekActive ? '👁 Visible' : '👁 Aperçu';
+    }
+    gridEl.classList.toggle('mystery', !peekActive);
+  }
+
+  // ── SOUND FX ─────────────────────────────────────────────────────────────
+  let audioCtx = null;
+  function initAudio() {
+    if (!audioCtx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (AC) audioCtx = new AC();
+    }
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  }
+  // ── Feux d'artifice de victoire ─────────────────────────────────────
+  const FW_COLORS = ['#F0AAB4','#28AADC','#F5D060','#2D5A27','#8B4513','#04ADAD','#F3C724','#00ACE9','#FFBB00','#f0f0f0'];
+
+  function fireworkBurst(x, y) {
+    const layer = document.getElementById('fireworksLayer');
+    if (!layer) return;
+    // flash au centre de l'explosion
+    const flash = document.createElement('div');
+    flash.className = 'fw-flash';
+    flash.style.cssText = `left:${x - 2}px; top:${y - 2}px;`;
+    layer.appendChild(flash);
+    setTimeout(() => flash.remove(), 400);
+
+    const count = 16 + Math.floor(Math.random() * 8);
+    const color = FW_COLORS[Math.floor(Math.random() * FW_COLORS.length)];
+    for (let i = 0; i < count; i++) {
+      const angle = (Math.PI * 2 * i) / count + Math.random() * 0.3;
+      const dist = 60 + Math.random() * 70;
+      const fx = Math.cos(angle) * dist;
+      const fy = Math.sin(angle) * dist;
+      const dur = 700 + Math.random() * 500;
+      const p = document.createElement('div');
+      p.className = 'fw-particle';
+      p.style.cssText = `left:${x - 3}px; top:${y - 3}px; background:${color}; --fx:${fx}px; --fy:${fy}px; --fw-dur:${dur}ms;`;
+      layer.appendChild(p);
+      setTimeout(() => p.remove(), dur + 50);
+    }
+  }
+
+  function launchFireworks(duration = 1200) {
+    let layer = document.getElementById('fireworksLayer');
+    if (!layer) {
+      layer = document.createElement('div');
+      layer.id = 'fireworksLayer';
+      layer.className = 'fireworks-layer';
+      document.body.appendChild(layer);
+    }
+    const w = window.innerWidth, h = window.innerHeight;
+    const bursts = 5;
+    for (let i = 0; i < bursts; i++) {
+      setTimeout(() => {
+        const x = w * 0.2 + Math.random() * w * 0.6;
+        const y = h * 0.15 + Math.random() * h * 0.4;
+        fireworkBurst(x, y);
+      }, i * (duration / bursts));
+    }
+    setTimeout(() => { if (layer) layer.remove(); }, duration + 900);
+  }
+
+  function playPop() {
+    if (!audioCtx) return;
+    try {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(320 + Math.random() * 80, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(120, audioCtx.currentTime + 0.05);
+      gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.05);
+    } catch(e) {}
+  }
+
+  // Map des plans de tir actifs par canon { id -> [{r,c}, ...] }
+  const firePlanMap = new Map();
+
+  function resetGame() {
+    stopAllFire();
+    fusedColors.clear();
+    firePlanMap.clear();
+
+    const lvIdx = gameMode === 'free' ? freeLevelIdx : (stage - 1) % LEVELS.length;
+    loadLevel(lvIdx);
+
+    placed = Array.from({length: NR}, () => Array(NC).fill(false));
+    shots = 0; gameOver = false; placedCount = 0;
+    beltCannons = [];
+
+    // Réinitialiser les slots du tapis
+    for (const s of fireSlots) {
+      s.cannon = null; s.firing = false;
+      if (s.timer) { clearTimeout(s.timer); s.timer = null; }
+      renderSlot(s);
+    }
+
+    // Le niveau est divisé en 2-3 couches
+    // Chaque couche tire ses canons sous forme de grille à trous
+    const basePile = buildOrderedPile();
+    const cols = wallCols(basePile.length);
+    const fullWall = buildWall(basePile);
+
+    // Découper : les 3 premières rangées forment le mur visible,
+    // le reste est stocké dans colStacks (une pile cachée PAR COLONNE)
+    const { g, res } = splitWall(fullWall);
+    wall = g;
+    colStacks = res;
+
+    // Déterminer la première ligne non-blanche
+    currentRow = fillDir === 'up' ? firstNonWhiteRow(NR - 1) : 0;
+
+    renderGrid();
+    renderCannonLines();
+    updateBeltCount();
+    updateStageUI();
+    updStats();
+    startWatchdog();
+    wO.classList.remove('show');
+    gOv.classList.remove('show');
+    setSt('Clique sur un canon du mur pour le placer sur le tapis de tir', 'ok');
+
+    // Le mur de canons ci-dessous vient de changer de hauteur : on recadre
+    // la grille maintenant que tout le bas de l'écran est à sa taille finale.
+    requestAnimationFrame(fitGrid);
+  }
+
+  // Recharger le stage actuel sans incrémenter
+  window.retryStage = () => {
+    resetGame();
+  };
+
+  // Passer au stage suivant
+  window.nextStage = () => {
+    if (gameMode === 'free') {
+      freeLevelIdx = (freeLevelIdx + 1) % LEVELS.length;
+    } else {
+      stage++;
+    }
+    resetGame();
+  };
+
+  let totalTarget = 0, placedCount = 0;
+
+  function renderGrid() {
+    gridEl.innerHTML = '';
+    totalTarget = 0; placedCount = 0;
+    for (let r = 0; r < NR; r++) {
+      for (let c = 0; c < NC; c++) {
+        const div = document.createElement('div');
+        const color = T[r][c];
+        if (!CI[color]) {
+          // Case vide : fond transparent, ne fait pas partie du dessin
+          div.className = 'gc gc-void';
+          gridEl.appendChild(div);
+          continue;
+        }
+        div.className = 'gc ' + GC[color];
+        if (placed[r][c]) {
+          div.appendChild(makeCube(color));
+          placedCount++;
+        }
+        gridEl.appendChild(div);
+        totalTarget++;
+      }
+    }
+  }
+
+  function makeCube(color) {
+    const c = document.createElement('div');
+    c.className = 'cube ' + CI[color].c;
+    return c;
+  }
+
+  function placeCell(r, c) {
+    const idx = r * NC + c;
+    const cell = gridEl.children[idx];
+    if (cell && !cell.querySelector('.cube')) {
+      const cube = makeCube(T[r][c]);
+      cube.classList.add('pop');
+      cell.appendChild(cube);
+    }
+  }
+
+  function prog() {
+    return { d: placedCount, t: totalTarget };
+  }
+
+  function updStats() {
+    sS.textContent = shots;
+    const {d, t} = prog();
+    const pct = t ? Math.round(d / t * 100) : 0;
+    sP.textContent = pct + '%';
+  }
+
+  function setSt(msg, cls) {
+    stEl.textContent = msg;
+    stEl.className = 'status ' + (cls || '');
+  }
+
+  // ── ATTACH EVENTS ────────────────────────────────────────────────────────
+  // ── Sélecteur de mode / niveaux ──────────────────────────────────────
+  function renderLevelList() {
+    const list = $('lvList');
+    if (!list) return;
+    list.innerHTML = '';
+    LEVELS.forEach((lv, idx) => {
+      const item = document.createElement('div');
+      item.className = 'lv-item';
+      item.innerHTML = `<span class="lv-name">${lv.name}</span><span class="lv-idx">Niveau ${idx + 1}</span>`;
+      item.onclick = () => {
+        gameMode = 'free';
+        freeLevelIdx = idx;
+        updateModeButtons();
+        closeLevelSelect();
+        resetGame();
+      };
+      list.appendChild(item);
+    });
+  }
+
+  function updateModeButtons() {
+    const advBtn = $('modeAdventureBtn'), freeBtn = $('modeFreeBtn');
+    if (advBtn) advBtn.classList.toggle('active', gameMode === 'adventure');
+    if (freeBtn) freeBtn.classList.toggle('active', gameMode === 'free');
+  }
+
+  function openLevelSelect() {
+    updateModeButtons();
+    renderLevelList();
+    const ov = $('levelSelectOverlay');
+    if (ov) ov.classList.add('show');
+  }
+
+  function closeLevelSelect() {
+    const ov = $('levelSelectOverlay');
+    if (ov) ov.classList.remove('show');
+  }
+
+  function setupLevelSelect() {
+    const openBtn = $('lvSelectBtn');
+    if (openBtn) openBtn.onclick = openLevelSelect;
+
+    const closeBtn = $('lvCloseBtn');
+    if (closeBtn) closeBtn.onclick = closeLevelSelect;
+
+    const advBtn = $('modeAdventureBtn');
+    if (advBtn) advBtn.onclick = () => {
+      gameMode = 'adventure';
+      updateModeButtons();
+      closeLevelSelect();
+      resetGame();
+    };
+
+    const freeBtn = $('modeFreeBtn');
+    if (freeBtn) freeBtn.onclick = () => {
+      gameMode = 'free';
+      updateModeButtons();
+      renderLevelList();
+    };
+
+    const ov = $('levelSelectOverlay');
+    if (ov) {
+      ov.addEventListener('click', (e) => {
+        if (e.target === ov) closeLevelSelect();
+      });
+    }
+  }
+
+  function setupUI() {
+    $('resetBtn').onclick = () => resetGame();
+
+    const dirBtn = $('dirBtn');
+    if (dirBtn) {
+      dirBtn.onclick = () => {
+        fillDir = fillDir === 'up' ? 'down' : 'up';
+        dirBtn.textContent = fillDir === 'up' ? '⬆ Bas → Haut' : '⬇ Haut → Bas';
+        resetGame();
+      };
+    }
+
+    const peekBtn = $('peekBtn');
+    if (peekBtn) {
+      peekBtn.onclick = () => setPeek(!peekActive);
+    }
+
+    setupLevelSelect();
+
+    window.addEventListener('resize', () => {
+      fitGrid();
+      if (wall && wall.length && wall[0]) setWallCellSize(wall[0].length);
+      else setFireSlotSize();
+    });
+    fitGrid();
+    setFireSlotSize();
+  }
+
+  function fitGrid() {
+    const sec = document.querySelector('.grid-section');
+    if (!sec) return;
+    const maxW = sec.clientWidth - 28;
+    const maxH = sec.clientHeight - 28;
+    // On se cale toujours sur le plus petit côté disponible (carré), puis on
+    // divise par le plus grand nombre de lignes/colonnes du dessin : ainsi
+    // le CADRE (grid-outer) occupe toujours la même taille d'un dessin à
+    // l'autre, seule la taille des cases change selon la résolution.
+    const box = Math.max(10, Math.min(maxW, maxH));
+    const side = Math.max(1, Math.floor(box / Math.max(NR, NC)));
+    document.documentElement.style.setProperty('--cell', side + 'px');
+  }
+
+  // Auto-init sur clic pour AudioContext
+  document.addEventListener('pointerdown', initAudio, { once: true });
+
+  // Lancement
+  document.addEventListener('DOMContentLoaded', () => {
+    setupUI();
+    setPeek(false); // Mode mystère activé par défaut au démarrage
+    resetGame();
+  });
+})();
+</script>
+</body>
+</html>
